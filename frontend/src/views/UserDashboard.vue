@@ -181,7 +181,7 @@ onUnmounted(() => {
 <style scoped>
 .user-dashboard {
   min-height: 100vh;
-  background-color: #ffffff;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 40px 20px;
   display: flex;
   flex-direction: column;
@@ -194,7 +194,7 @@ onUnmounted(() => {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background-color: #ffffff;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .empty-state {
@@ -203,7 +203,7 @@ onUnmounted(() => {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background-color: #ffffff;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .accounts-container {
@@ -220,8 +220,14 @@ onUnmounted(() => {
   justify-content: center;
   gap: 24px;
   width: 100%;
-  max-width: 1400px;
+  max-width: 1600px;
   margin-bottom: 40px;
+}
+
+.account-card {
+  min-width: 500px;
+  max-width: 600px;
+  flex: 1 1 auto;
 }
 
 .account-card {

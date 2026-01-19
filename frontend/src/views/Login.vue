@@ -3,7 +3,7 @@
     <el-card class="login-card">
       <template #header>
         <div class="card-header">
-          <h2>Steam 验证器管理系统</h2>
+          <h2>Steam取号器</h2>
         </div>
       </template>
       

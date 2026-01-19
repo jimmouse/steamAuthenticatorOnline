@@ -1,6 +1,6 @@
-# Steam Authenticator Online Management System
+# Steam取号器
 
-Steam 验证器在线管理系统 - 支持多用户管理 Steam 账户和二步验证码
+Steam取号器 - 支持多用户管理 Steam 账户和二步验证码
 
 ## 功能特性
 
