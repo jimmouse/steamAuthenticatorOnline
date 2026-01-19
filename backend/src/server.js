@@ -1,8 +1,8 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
-const path = require('path');
 
 // 检查必要的环境变量
 if (!process.env.JWT_SECRET) {
@@ -30,7 +30,10 @@ app.use(express.urlencoded({ extended: true }));
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
-  message: 'Too many requests from this IP'
+  message: 'Too many requests from this IP',
+  validate: {
+    trustProxy: process.env.TRUST_PROXY === 'true'
+  }
 });
 
 app.use('/api/', limiter);
@@ -41,6 +44,9 @@ const authLimiter = rateLimit({
   message: 'Too many login attempts, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: {
+    trustProxy: process.env.TRUST_PROXY === 'true'
+  }
 });
 
 app.use('/api/auth/login', authLimiter);

@@ -11,13 +11,16 @@ router.post('/login', async (req, res) => {
   const clientIp = getClientIp(req);
   const userAgent = req.headers['user-agent'];
 
+  console.log(`[LOGIN] 尝试登录 - 用户名: ${username}, IP: ${clientIp}`);
+
   if (!username || !password) {
+    console.log(`[LOGIN] 缺少用户名或密码`);
     return res.status(400).json({ error: 'Username and password required' });
   }
 
   db.get('SELECT * FROM users WHERE username = ? AND is_active = 1', [username], async (err, user) => {
     if (err) {
-      console.error('Database error:', err);
+      console.error('[LOGIN] 数据库错误:', err);
       return res.status(500).json({ error: 'Internal server error' });
     }
 
@@ -29,15 +32,20 @@ router.post('/login', async (req, res) => {
     };
 
     if (!user) {
+      console.log(`[LOGIN] 用户不存在或已被禁用: ${username}`);
       logLogin(null, false);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    console.log(`[LOGIN] 找到用户: ${user.username}, 角色: ${user.role}`);
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
+      console.log(`[LOGIN] 密码验证失败: ${username}`);
       logLogin(user.id, false);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    console.log(`[LOGIN] 登录成功: ${username}`);
 
     db.run(
       'UPDATE users SET last_login = CURRENT_TIMESTAMP, last_ip = ? WHERE id = ?',

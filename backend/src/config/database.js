@@ -2,7 +2,23 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
 
-const dbPath = process.env.DB_PATH || './data/database.sqlite';
+// 数据库路径解析：优先使用 backend/data/，如果不存在则使用根目录的 data/
+let dbPath = process.env.DB_PATH || './data/database.sqlite';
+
+if (!path.isAbsolute(dbPath)) {
+  // 相对路径：先尝试 backend/data/（脚本目录的上级目录）
+  const backendDbPath = path.join(__dirname, '../../data/database.sqlite');
+  // 再尝试相对于当前工作目录的路径
+  const cwdDbPath = path.resolve(process.cwd(), dbPath);
+  
+  // 优先使用 backend/data/，如果不存在则使用工作目录的路径
+  if (fs.existsSync(backendDbPath)) {
+    dbPath = backendDbPath;
+  } else {
+    dbPath = cwdDbPath;
+  }
+}
+
 const dbDir = path.dirname(dbPath);
 
 if (!fs.existsSync(dbDir)) {
