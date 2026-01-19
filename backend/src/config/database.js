@@ -67,10 +67,22 @@ db.serialize(() => {
     success INTEGER NOT NULL
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS api_keys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    api_key TEXT UNIQUE NOT NULL,
+    name TEXT,
+    created_by INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_used_at DATETIME,
+    is_active INTEGER DEFAULT 1,
+    FOREIGN KEY (created_by) REFERENCES users(id)
+  )`);
+
   db.run(`CREATE INDEX IF NOT EXISTS idx_user_permissions_user ON user_permissions(user_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_user_permissions_account ON user_permissions(steam_account_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_login_logs_user ON login_logs(user_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_login_logs_time ON login_logs(login_time)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_api_keys_key ON api_keys(api_key)`);
 });
 
 module.exports = db;

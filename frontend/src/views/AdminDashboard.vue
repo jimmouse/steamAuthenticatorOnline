@@ -36,6 +36,10 @@
               <el-icon><Document /></el-icon>
               <span>登录日志</span>
             </el-menu-item>
+            <el-menu-item index="api-keys">
+              <el-icon><Key /></el-icon>
+              <span>API Key 管理</span>
+            </el-menu-item>
           </el-menu>
         </el-aside>
         
@@ -56,6 +60,7 @@ import UsersManagement from '@/components/admin/UsersManagement.vue'
 import AccountsManagement from '@/components/admin/AccountsManagement.vue'
 import PermissionsManagement from '@/components/admin/PermissionsManagement.vue'
 import LogsManagement from '@/components/admin/LogsManagement.vue'
+import ApiKeysManagement from '@/components/admin/ApiKeysManagement.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -66,7 +71,8 @@ const components = {
   users: UsersManagement,
   accounts: AccountsManagement,
   permissions: PermissionsManagement,
-  logs: LogsManagement
+  logs: LogsManagement,
+  'api-keys': ApiKeysManagement
 }
 
 const currentComponent = computed(() => components[activeMenu.value])

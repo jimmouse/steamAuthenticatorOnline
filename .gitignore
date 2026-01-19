@@ -1,6 +1,47 @@
+# 依赖
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 环境变量
 .env
+.env.local
+.env.production
+.env.development
+
+# 构建输出
+frontend/dist/
+frontend/.vite/
+
+# 数据库
+backend/data/database.sqlite
+backend/data/uploads/*
+
+# 日志
+logs/
 *.log
+pm2-*.log
+
+# 系统文件
 .DS_Store
-/backend/data/
-/frontend/dist/
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# 备份
+*.backup
+*.bak
+backups/
+
+# 临时文件
+tmp/
+temp/
+*.tmp

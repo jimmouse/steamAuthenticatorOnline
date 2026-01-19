@@ -4,9 +4,17 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
+// 检查必要的环境变量
+if (!process.env.JWT_SECRET) {
+  console.error('错误: JWT_SECRET 环境变量未设置！');
+  console.error('请在 backend/.env 文件中设置 JWT_SECRET');
+  process.exit(1);
+}
+
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
 const adminRoutes = require('./routes/admin');
+const externalRoutes = require('./routes/external');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -38,6 +46,7 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/external', externalRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

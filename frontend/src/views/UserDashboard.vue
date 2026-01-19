@@ -1,98 +1,94 @@
 <template>
   <div class="user-dashboard">
-    <el-container>
-      <el-header class="header">
-        <div class="header-content">
-          <h2>Steam 账户管理</h2>
-          <div class="user-info">
-            <el-icon><User /></el-icon>
-            <span>{{ authStore.user?.username }}</span>
-            <el-button type="danger" size="small" @click="handleLogout">
-              退出登录
-            </el-button>
-          </div>
-        </div>
-      </el-header>
-      
-      <el-main>
-        <div v-if="loading" class="loading-container">
-          <el-icon class="is-loading" :size="40"><Loading /></el-icon>
-        </div>
-        
-        <div v-else-if="accounts.length === 0" class="empty-state">
-          <el-empty description="暂无可用的 Steam 账户" />
-        </div>
-        
-        <div v-else class="accounts-grid">
-          <el-card
-            v-for="account in accounts"
-            :key="account.id"
-            class="account-card"
-            shadow="hover"
-          >
-            <template #header>
-              <div class="card-header">
-                <el-icon><Avatar /></el-icon>
-                <span class="account-name">{{ account.accountName }}</span>
-              </div>
-            </template>
-            
-            <div class="account-info">
-              <div class="info-item">
-                <label>用户名：</label>
-                <div class="value-with-copy">
-                  <span>{{ account.username }}</span>
-                  <el-button
-                    size="small"
-                    :icon="DocumentCopy"
-                    @click="copyToClipboard(account.username, '用户名')"
-                  />
-                </div>
-              </div>
-              
-              <div class="info-item">
-                <label>密码：</label>
-                <div class="value-with-copy">
-                  <span>{{ showPassword[account.id] ? account.password : '••••••••' }}</span>
-                  <el-button
-                    size="small"
-                    :icon="showPassword[account.id] ? Hide : View"
-                    @click="togglePassword(account.id)"
-                  />
-                  <el-button
-                    size="small"
-                    :icon="DocumentCopy"
-                    @click="copyToClipboard(account.password, '密码')"
-                  />
-                </div>
-              </div>
-              
-              <div class="info-item auth-code">
-                <label>验证码：</label>
-                <div class="code-container">
-                  <div class="code-display">
-                    <span class="code">{{ account.authCode || '加载中...' }}</span>
-                    <el-progress
-                      :percentage="(account.timeRemaining / 30) * 100"
-                      :show-text="false"
-                      :stroke-width="4"
-                      :color="getProgressColor(account.timeRemaining)"
-                    />
-                    <span class="time-remaining">{{ account.timeRemaining }}s</span>
-                  </div>
-                  <el-button
-                    type="primary"
-                    size="small"
-                    :icon="DocumentCopy"
-                    @click="copyToClipboard(account.authCode, '验证码')"
-                  />
-                </div>
+    <div v-if="loading" class="loading-container">
+      <el-icon class="is-loading" :size="40"><Loading /></el-icon>
+    </div>
+    
+    <div v-else-if="accounts.length === 0" class="empty-state">
+      <el-empty description="暂无可用的 Steam 账户" />
+      <div class="logout-container">
+        <el-button type="danger" @click="handleLogout">
+          退出登录
+        </el-button>
+      </div>
+    </div>
+    
+    <div v-else class="accounts-container">
+      <div class="accounts-grid">
+        <el-card
+          v-for="account in accounts"
+          :key="account.id"
+          class="account-card"
+          shadow="hover"
+        >
+          <template #header>
+            <div class="card-header">
+              <el-icon><Avatar /></el-icon>
+              <span class="account-name">{{ account.accountName }}</span>
+            </div>
+          </template>
+          
+          <div class="account-info">
+            <div class="info-item">
+              <label>👤 用户名：</label>
+              <div class="value-with-copy">
+                <span>{{ account.username }}</span>
+                <el-button
+                  size="small"
+                  :icon="DocumentCopy"
+                  @click="copyToClipboard(account.username, '用户名')"
+                />
               </div>
             </div>
-          </el-card>
-        </div>
-      </el-main>
-    </el-container>
+            
+            <div class="info-item">
+              <label>🔑 密码：</label>
+              <div class="value-with-copy">
+                <span>{{ showPassword[account.id] ? account.password : '••••••••' }}</span>
+                <el-button
+                  size="small"
+                  :icon="showPassword[account.id] ? Hide : View"
+                  @click="togglePassword(account.id)"
+                />
+                <el-button
+                  size="small"
+                  :icon="DocumentCopy"
+                  @click="copyToClipboard(account.password, '密码')"
+                />
+              </div>
+            </div>
+            
+            <div class="info-item auth-code">
+              <label>🔐 验证码：</label>
+              <div class="code-container">
+                <div class="code-display">
+                  <span class="code">{{ account.authCode || '加载中...' }}</span>
+                  <el-progress
+                    :percentage="(account.timeRemaining / 30) * 100"
+                    :show-text="false"
+                    :stroke-width="4"
+                    :color="getProgressColor(account.timeRemaining)"
+                  />
+                  <span class="time-remaining">{{ account.timeRemaining }}s</span>
+                </div>
+                <el-button
+                  type="primary"
+                  size="small"
+                  :icon="DocumentCopy"
+                  @click="copyToClipboard(account.authCode, '验证码')"
+                />
+              </div>
+            </div>
+          </div>
+        </el-card>
+      </div>
+      
+      <div class="logout-container">
+        <el-button type="danger" @click="handleLogout">
+          退出登录
+        </el-button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -100,7 +96,7 @@
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User, Avatar, DocumentCopy, View, Hide, Loading } from '@element-plus/icons-vue'
+import { Avatar, DocumentCopy, View, Hide, Loading } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import axios from '@/utils/axios'
 
@@ -185,51 +181,47 @@ onUnmounted(() => {
 <style scoped>
 .user-dashboard {
   min-height: 100vh;
-  background-color: #f5f7fa;
-}
-
-.header {
-  background-color: #fff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.header-content {
+  background-color: #ffffff;
+  padding: 40px 20px;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  height: 100%;
-}
-
-.header-content h2 {
-  margin: 0;
-  color: #303133;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  justify-content: center;
 }
 
 .loading-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 400px;
+  min-height: 100vh;
+  background-color: #ffffff;
 }
 
 .empty-state {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  min-height: 400px;
+  min-height: 100vh;
+  background-color: #ffffff;
+}
+
+.accounts-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .accounts-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 20px;
-  padding: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 24px;
+  width: 100%;
+  max-width: 1400px;
+  margin-bottom: 40px;
 }
 
 .account-card {
@@ -319,5 +311,13 @@ onUnmounted(() => {
   text-align: center;
   font-size: 12px;
   color: #909399;
+}
+
+.logout-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 40px;
+  padding-top: 40px;
 }
 </style>

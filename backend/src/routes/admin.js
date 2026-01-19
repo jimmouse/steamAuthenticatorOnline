@@ -383,4 +383,108 @@ router.get('/logs', (req, res) => {
   });
 });
 
+// API Key 管理
+router.get('/api-keys', (req, res) => {
+  const query = `
+    SELECT 
+      ak.id,
+      ak.api_key,
+      ak.name,
+      ak.created_by,
+      u.username as created_by_username,
+      ak.created_at,
+      ak.last_used_at,
+      ak.is_active
+    FROM api_keys ak
+    LEFT JOIN users u ON ak.created_by = u.id
+    ORDER BY ak.created_at DESC
+  `;
+
+  db.all(query, [], (err, apiKeys) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+    res.json({ apiKeys });
+  });
+});
+
+router.post('/api-keys', (req, res) => {
+  const { name } = req.body;
+  const crypto = require('crypto');
+  
+  // 生成 API Key
+  const apiKey = 'sk_' + crypto.randomBytes(32).toString('hex');
+
+  db.run(
+    'INSERT INTO api_keys (api_key, name, created_by) VALUES (?, ?, ?)',
+    [apiKey, name || 'Untitled', req.user.id],
+    function(err) {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+      res.status(201).json({
+        message: 'API key created successfully',
+        api_key: apiKey,
+        id: this.lastID
+      });
+    }
+  );
+});
+
+router.delete('/api-keys/:id', (req, res) => {
+  const apiKeyId = req.params.id;
+
+  db.run('DELETE FROM api_keys WHERE id = ?', [apiKeyId], function(err) {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'API key not found' });
+    }
+    res.json({ message: 'API key deleted successfully' });
+  });
+});
+
+router.put('/api-keys/:id', (req, res) => {
+  const apiKeyId = req.params.id;
+  const { name, is_active } = req.body;
+
+  const updates = [];
+  const params = [];
+
+  if (name !== undefined) {
+    updates.push('name = ?');
+    params.push(name);
+  }
+
+  if (typeof is_active !== 'undefined') {
+    updates.push('is_active = ?');
+    params.push(is_active ? 1 : 0);
+  }
+
+  if (updates.length === 0) {
+    return res.status(400).json({ error: 'No fields to update' });
+  }
+
+  params.push(apiKeyId);
+
+  db.run(
+    `UPDATE api_keys SET ${updates.join(', ')} WHERE id = ?`,
+    params,
+    function(err) {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'API key not found' });
+      }
+      res.json({ message: 'API key updated successfully' });
+    }
+  );
+});
+
 module.exports = router;

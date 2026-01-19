@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const db = require('../config/database');
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -24,6 +25,38 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+function authenticateApiKey(req, res, next) {
+  const apiKey = req.headers['x-api-key'] || req.query.api_key;
+
+  if (!apiKey) {
+    return res.status(401).json({ error: 'API key required' });
+  }
+
+  db.get(
+    'SELECT * FROM api_keys WHERE api_key = ? AND is_active = 1',
+    [apiKey],
+    (err, apiKeyRecord) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+
+      if (!apiKeyRecord) {
+        return res.status(401).json({ error: 'Invalid API key' });
+      }
+
+      // 更新最后使用时间
+      db.run(
+        'UPDATE api_keys SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [apiKeyRecord.id]
+      );
+
+      req.apiKey = apiKeyRecord;
+      next();
+    }
+  );
+}
+
 function getClientIp(req) {
   const trustProxy = process.env.TRUST_PROXY === 'true';
   const ipHeader = process.env.IP_HEADER || 'x-forwarded-for';
@@ -39,5 +72,6 @@ function getClientIp(req) {
 module.exports = {
   authenticateToken,
   requireAdmin,
+  authenticateApiKey,
   getClientIp
 };

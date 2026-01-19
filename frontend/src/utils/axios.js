@@ -29,10 +29,18 @@ instance.interceptors.response.use(
       const { status, data } = error.response
       
       if (status === 401) {
-        localStorage.removeItem('token')
-        localStorage.removeItem('user')
-        router.push('/login')
-        ElMessage.error('登录已过期，请重新登录')
+        // 如果当前不在登录页面，才清除 token 并跳转
+        // 登录失败时也会返回 401，不应该跳转
+        const currentPath = router.currentRoute.value.path
+        if (currentPath !== '/login') {
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
+          router.push('/login')
+          ElMessage.error('登录已过期，请重新登录')
+        } else {
+          // 在登录页面，显示具体的错误消息
+          ElMessage.error(data.error || '用户名或密码错误')
+        }
       } else if (status === 403) {
         ElMessage.error(data.error || '没有权限')
       } else if (status === 404) {

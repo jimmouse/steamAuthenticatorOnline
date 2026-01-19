@@ -46,6 +46,11 @@ router.post('/login', async (req, res) => {
 
     logLogin(user.id, true);
 
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET is not set');
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
       process.env.JWT_SECRET,
