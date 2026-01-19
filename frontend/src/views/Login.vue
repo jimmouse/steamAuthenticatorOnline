@@ -91,10 +91,10 @@ const handleLogin = async () => {
       }
     } catch (error) {
       console.error('Login error:', error)
-      // 错误消息已由 axios 拦截器显示，这里不需要再次显示
-      // 但如果需要更详细的错误处理，可以在这里添加
-      if (error.response?.data?.error) {
-        ElMessage.error(error.response.data.error)
+      // 错误消息已由 axios 拦截器显示
+      // 如果没有显示，这里作为备用
+      if (!error.response && error.message) {
+        ElMessage.error('连接失败：' + error.message)
       }
     } finally {
       loading.value = false

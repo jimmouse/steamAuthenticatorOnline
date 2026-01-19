@@ -46,13 +46,17 @@ instance.interceptors.response.use(
       } else if (status === 404) {
         ElMessage.error(data.error || '资源不存在')
       } else if (status === 500) {
-        ElMessage.error('服务器错误')
+        ElMessage.error(data.error || '服务器错误')
+      } else if (status === 429) {
+        ElMessage.error('请求过于频繁，请稍后再试')
       } else {
-        ElMessage.error(data.error || '请求失败')
+        ElMessage.error(data.error || data.message || `请求失败 (${status})`)
       }
     } else if (error.request) {
-      ElMessage.error('网络错误，请检查连接')
+      console.error('Request error:', error)
+      ElMessage.error('网络错误，请检查后端服务是否运行')
     } else {
+      console.error('Config error:', error)
       ElMessage.error('请求配置错误')
     }
     
