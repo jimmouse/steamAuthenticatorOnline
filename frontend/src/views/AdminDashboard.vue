@@ -20,6 +20,10 @@
             :default-active="activeMenu"
             @select="handleMenuSelect"
           >
+            <el-menu-item index="preview">
+              <el-icon><View /></el-icon>
+              <span>预览</span>
+            </el-menu-item>
             <el-menu-item index="users">
               <el-icon><User /></el-icon>
               <span>用户管理</span>
@@ -36,10 +40,6 @@
               <el-icon><Document /></el-icon>
               <span>登录日志</span>
             </el-menu-item>
-            <el-menu-item index="api-keys">
-              <el-icon><Key /></el-icon>
-              <span>API Key 管理</span>
-            </el-menu-item>
           </el-menu>
         </el-aside>
         
@@ -54,25 +54,25 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { UserFilled, User, Postcard, Key, Document } from '@element-plus/icons-vue'
+import { UserFilled, User, Postcard, Key, Document, View } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
+import AccountsPreview from '@/components/admin/AccountsPreview.vue'
 import UsersManagement from '@/components/admin/UsersManagement.vue'
 import AccountsManagement from '@/components/admin/AccountsManagement.vue'
 import PermissionsManagement from '@/components/admin/PermissionsManagement.vue'
 import LogsManagement from '@/components/admin/LogsManagement.vue'
-import ApiKeysManagement from '@/components/admin/ApiKeysManagement.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
-const activeMenu = ref('users')
+const activeMenu = ref('preview')
 
 const components = {
+  preview: AccountsPreview,
   users: UsersManagement,
   accounts: AccountsManagement,
   permissions: PermissionsManagement,
-  logs: LogsManagement,
-  'api-keys': ApiKeysManagement
+  logs: LogsManagement
 }
 
 const currentComponent = computed(() => components[activeMenu.value])

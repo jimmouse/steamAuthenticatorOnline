@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const db = require('../config/database');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
-const { parseSdaFile } = require('../utils/steamAuth');
+const { parseSdaFile, generateAuthCode, getTimeRemaining } = require('../utils/steamAuth');
 
 const router = express.Router();
 
@@ -380,6 +380,67 @@ router.get('/logs', (req, res) => {
       return res.status(500).json({ error: 'Internal server error' });
     }
     res.json({ logs });
+  });
+});
+
+router.get('/steam-accounts/:id/preview', (req, res) => {
+  const accountId = req.params.id;
+
+  const query = `
+    SELECT 
+      id,
+      account_name,
+      username,
+      password,
+      shared_secret
+    FROM steam_accounts
+    WHERE id = ? AND is_active = 1
+  `;
+
+  db.get(query, [accountId], (err, account) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
+    res.json({
+      id: account.id,
+      accountName: account.account_name,
+      username: account.username,
+      password: account.password,
+      authCode: generateAuthCode(account.shared_secret),
+      timeRemaining: getTimeRemaining()
+    });
+  });
+});
+
+router.get('/steam-accounts/:id/code', (req, res) => {
+  const accountId = req.params.id;
+
+  const query = `
+    SELECT shared_secret
+    FROM steam_accounts
+    WHERE id = ? AND is_active = 1
+  `;
+
+  db.get(query, [accountId], (err, account) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
+    res.json({
+      authCode: generateAuthCode(account.shared_secret),
+      timeRemaining: getTimeRemaining()
+    });
   });
 });
 
