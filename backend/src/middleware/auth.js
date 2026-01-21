@@ -58,15 +58,59 @@ function authenticateApiKey(req, res, next) {
 }
 
 function getClientIp(req) {
-  const trustProxy = process.env.TRUST_PROXY === 'true';
-  const ipHeader = process.env.IP_HEADER || 'x-forwarded-for';
-  
-  if (trustProxy && req.headers[ipHeader]) {
-    const ips = req.headers[ipHeader].split(',');
-    return ips[0].trim();
+  // 优先从 x-forwarded-for 获取（Nginx/代理转发）
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) {
+    const ips = forwarded.split(',').map(ip => ip.trim());
+    // 返回第一个非内网IP
+    for (const ip of ips) {
+      if (!isPrivateIP(ip)) {
+        return ip;
+      }
+    }
+    return ips[0]; // 如果都是内网IP，返回第一个
   }
-  
-  return req.ip || req.connection.remoteAddress;
+
+  // 尝试其他header
+  const realIp = req.headers['x-real-ip'];
+  if (realIp && !isPrivateIP(realIp)) {
+    return realIp;
+  }
+
+  // 最后使用连接IP
+  let remoteAddr = req.connection?.remoteAddress || req.socket?.remoteAddress || req.ip;
+
+  // 移除IPv6前缀
+  if (remoteAddr && remoteAddr.startsWith('::ffff:')) {
+    remoteAddr = remoteAddr.substring(7);
+  }
+
+  // 如果是Docker网关IP或内网IP，说明是本地访问
+  if (remoteAddr && (remoteAddr.startsWith('172.') || remoteAddr.startsWith('192.168.') || remoteAddr.startsWith('10.'))) {
+    return '127.0.0.1';
+  }
+
+  return remoteAddr || 'unknown';
+}
+
+// 判断是否为私有IP
+function isPrivateIP(ip) {
+  if (!ip) return true;
+
+  // IPv4私有地址
+  const privateRanges = [
+    /^10\./,                    // 10.0.0.0/8
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./, // 172.16.0.0/12
+    /^192\.168\./,              // 192.168.0.0/16
+    /^127\./,                   // 127.0.0.0/8 (localhost)
+    /^169\.254\./,              // 169.254.0.0/16 (link-local)
+    /^::1$/,                    // IPv6 localhost
+    /^fe80:/,                   // IPv6 link-local
+    /^fc00:/,                   // IPv6 unique local
+    /^fd00:/                    // IPv6 unique local
+  ];
+
+  return privateRanges.some(range => range.test(ip));
 }
 
 module.exports = {

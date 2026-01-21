@@ -55,6 +55,9 @@
         <template #footer>
           <div class="card-actions">
             <el-button size="small" @click="showEditDialog(account)">编辑</el-button>
+            <el-button size="small" type="warning" @click="showSessionDialog(account)">
+              更新Session
+            </el-button>
             <el-popconfirm
               title="确定删除此账户吗？"
               @confirm="deleteAccount(account.id)"
@@ -148,11 +151,19 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- Session管理对话框 -->
+    <SessionManager
+      v-model="sessionDialogVisible"
+      :account-id="currentAccountId"
+      @success="handleSessionUpdated"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import SessionManager from './SessionManager.vue'
 import { ElMessage } from 'element-plus'
 import { Plus, ArrowDown } from '@element-plus/icons-vue'
 import axios from '@/utils/axios'
@@ -166,6 +177,8 @@ const uploading = ref(false)
 const formRef = ref(null)
 const uploadRef = ref(null)
 const expandedNotes = reactive({})
+const sessionDialogVisible = ref(false)
+const currentAccountId = ref(null)
 
 const editorToolbar = [
   ['bold', 'italic', 'underline', 'strike'],
@@ -339,6 +352,16 @@ const getCardBannerStyle = (account) => {
 
 const toggleNotes = (accountId) => {
   expandedNotes[accountId] = !expandedNotes[accountId]
+}
+
+const showSessionDialog = (account) => {
+  currentAccountId.value = account.id
+  sessionDialogVisible.value = true
+}
+
+const handleSessionUpdated = () => {
+  ElMessage.success('Session更新成功！现在可以查看确认了')
+  sessionDialogVisible.value = false
 }
 
 onMounted(() => {

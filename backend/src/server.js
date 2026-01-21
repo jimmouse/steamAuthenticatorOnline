@@ -21,8 +21,10 @@ const healthRoutes = require('./routes/health');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-if (process.env.TRUST_PROXY === 'true') {
+// 在Docker环境中需要信任代理
+if (process.env.TRUST_PROXY === 'true' || process.env.NODE_ENV === 'production') {
   app.set('trust proxy', true);
+  console.log('Trust proxy enabled');
 }
 
 app.use(cors());
@@ -33,15 +35,14 @@ app.use(express.urlencoded({ extended: true }));
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
-  message: 'Too many login attempts, please try again later',
+  message: 'Too many login attempts from this IP',
   standardHeaders: true,
   legacyHeaders: false,
   validate: {
-    trustProxy: process.env.TRUST_PROXY === 'true'
+    trustProxy: false,  // 禁用验证，因为我们已经在app层面设置了trust proxy
+    xForwardedForHeader: false
   }
 });
-
-app.use('/api/auth/login', authLimiter);
 
 // 对外部API进行限制
 const externalLimiter = rateLimit({
@@ -49,9 +50,12 @@ const externalLimiter = rateLimit({
   max: 100,
   message: 'Too many requests from this IP',
   validate: {
-    trustProxy: process.env.TRUST_PROXY === 'true'
+    trustProxy: false,
+    xForwardedForHeader: false
   }
 });
+
+app.use('/api/auth/login', authLimiter);
 
 app.use('/api/external', externalLimiter);
 

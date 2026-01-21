@@ -967,6 +967,77 @@ router.put('/settings', (req, res) => {
   });
 });
 
+// 自动获取Session（使用账户密码和令牌）
+router.post('/steam-accounts/:id/session/auto', async (req, res) => {
+  const { id } = req.params;
+  const { autoLogin } = req.body;
+  
+  if (!autoLogin) {
+    return res.status(400).json({ error: 'autoLogin flag required' });
+  }
+
+  try {
+    // 获取账户信息
+    db.get('SELECT * FROM steam_accounts WHERE id = ?', [id], async (err, account) => {
+      if (err || !account) {
+        return res.status(404).json({ error: 'Account not found' });
+      }
+
+      // 解析sda_data获取必要信息
+      let sdaData;
+      try {
+        sdaData = JSON.parse(account.sda_data);
+      } catch (e) {
+        return res.status(400).json({ error: 'Invalid account data' });
+      }
+
+      if (!account.password) {
+        return res.status(400).json({ error: 'Account password not set' });
+      }
+
+      if (!sdaData.shared_secret) {
+        return res.status(400).json({ error: 'Shared secret not found' });
+      }
+
+      // 执行自动登录
+      const { autoLoginSteam } = require('../utils/steamAutoLogin');
+      const result = await autoLoginSteam(
+        account.username,
+        account.password,
+        sdaData.shared_secret
+      );
+
+      if (!result.success) {
+        return res.status(400).json({ 
+          error: 'Auto login failed', 
+          message: result.error 
+        });
+      }
+
+      // 保存Session
+      const { updateAccountSession } = require('../utils/steamLogin');
+      const session = {
+        SessionID: result.sessionData.sessionid,
+        SteamID: result.sessionData.steamid,
+        SteamLoginSecure: result.sessionData.steamLoginSecure
+      };
+
+      await updateAccountSession(db, id, session);
+
+      res.json({ 
+        message: 'Session auto-fetched and updated successfully',
+        session: {
+          SteamID: session.SteamID,
+          UpdatedAt: new Date().toISOString()
+        }
+      });
+    });
+  } catch (error) {
+    console.error('Failed to auto-fetch session:', error);
+    res.status(500).json({ error: 'Failed to auto-fetch session', message: error.message });
+  }
+});
+
 // 更新Steam账户的Session数据
 router.post('/steam-accounts/:id/session', async (req, res) => {
   const { id } = req.params;
@@ -1011,6 +1082,45 @@ router.post('/steam-accounts/:id/session', async (req, res) => {
     console.error('Failed to update session:', error);
     res.status(500).json({ error: 'Failed to update session', message: error.message });
   }
+});
+
+// 清理登录日志
+router.delete('/logs', (req, res) => {
+  const { days } = req.body;
+  
+  // 默认保留最近7天的日志
+  const daysToKeep = days || 7;
+  
+  db.run(
+    'DELETE FROM login_logs WHERE created_at < datetime(\'now\', \'-\' || ? || \' days\')',
+    [daysToKeep],
+    function(err) {
+      if (err) {
+        console.error('Failed to clean logs:', err);
+        return res.status(500).json({ error: 'Failed to clean logs' });
+      }
+      
+      res.json({ 
+        message: 'Logs cleaned successfully',
+        deletedCount: this.changes
+      });
+    }
+  );
+});
+
+// 清理所有登录日志
+router.delete('/logs/all', (req, res) => {
+  db.run('DELETE FROM login_logs', function(err) {
+    if (err) {
+      console.error('Failed to clean all logs:', err);
+      return res.status(500).json({ error: 'Failed to clean all logs' });
+    }
+    
+    res.json({ 
+      message: 'All logs cleaned successfully',
+      deletedCount: this.changes
+    });
+  });
 });
 
 module.exports = router;

@@ -32,6 +32,10 @@
               <el-icon><Postcard /></el-icon>
               <span>Steam账户</span>
             </el-menu-item>
+            <el-menu-item index="pending">
+              <el-icon><Clock /></el-icon>
+              <span>待激活用户</span>
+            </el-menu-item>
             <el-menu-item index="batch-import">
               <el-icon><Upload /></el-icon>
               <span>批量导入</span>
@@ -66,7 +70,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { UserFilled, User, Postcard, Key, Document, View, Setting, Upload } from '@element-plus/icons-vue'
+import { UserFilled, User, Postcard, Key, Document, View, Setting, Upload, Clock } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import AccountsPreview from '@/components/admin/AccountsPreview.vue'
 import UsersManagement from '@/components/admin/UsersManagement.vue'
@@ -109,13 +113,20 @@ const handleLogout = async () => {
 
 <style scoped>
 .admin-dashboard {
-  min-height: 100vh;
-  background-color: #f5f7fa;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-dashboard :deep(.el-container) {
+  height: 100%;
 }
 
 .header {
-  background-color: #fff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
+  padding: 0 20px;
+  flex-shrink: 0;
 }
 
 .header-content {
@@ -125,9 +136,8 @@ const handleLogout = async () => {
   height: 100%;
 }
 
-.header-content h2 {
+.header h2 {
   margin: 0;
-  color: #303133;
 }
 
 .user-info {
@@ -137,11 +147,20 @@ const handleLogout = async () => {
 }
 
 .sidebar {
-  background-color: #fff;
-  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+  background: #fff;
+  border-right: 1px solid #e8e8e8;
+  height: calc(100vh - 60px);
+  overflow-y: auto;
+  flex-shrink: 0;
 }
 
-.el-menu {
+.sidebar :deep(.el-menu) {
   border-right: none;
+  height: 100%;
+}
+
+.el-main {
+  height: calc(100vh - 60px);
+  overflow-y: auto;
 }
 </style>

@@ -3,7 +3,7 @@ FROM node:18-alpine
 WORKDIR /app
 
 # 安装必要的系统依赖
-RUN apk add --no-cache python3 make g++
+RUN apk update && apk add --no-cache python3 make g++
 
 # 复制package文件
 COPY package*.json ./

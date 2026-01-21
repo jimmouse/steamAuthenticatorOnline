@@ -63,9 +63,12 @@
       </el-tabs>
 
       <template #footer>
-        <el-button @click="handleClose">取消</el-button>
+        <el-button @click="visible = false">取消</el-button>
+        <el-button type="success" @click="autoFetchSession" :loading="autoLoading">
+          自动获取Session
+        </el-button>
         <el-button type="primary" @click="handleSubmit" :loading="submitting">
-          更新会话
+          手动更新会话
         </el-button>
       </template>
     </el-dialog>

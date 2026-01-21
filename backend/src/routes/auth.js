@@ -9,7 +9,29 @@ const router = express.Router();
 
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
-  const clientIp = getClientIp(req);
+  
+  // 获取真实IP
+  const forwarded = req.headers['x-forwarded-for'];
+  const realIp = req.headers['x-real-ip'];
+  let clientIp = req.ip || req.connection?.remoteAddress;
+  
+  // 优先使用x-forwarded-for
+  if (forwarded) {
+    clientIp = forwarded.split(',')[0].trim();
+  } else if (realIp) {
+    clientIp = realIp;
+  }
+  
+  // 移除IPv6前缀
+  if (clientIp && clientIp.startsWith('::ffff:')) {
+    clientIp = clientIp.substring(7);
+  }
+  
+  // 如果是Docker网关IP，说明是本地访问，显示为localhost
+  if (clientIp && (clientIp.startsWith('172.') || clientIp.startsWith('192.168.'))) {
+    clientIp = '127.0.0.1 (本地访问)';
+  }
+
   const userAgent = req.headers['user-agent'];
 
   console.log(`[LOGIN] 尝试登录 - 用户名: ${username}, IP: ${clientIp}`);
