@@ -36,6 +36,11 @@ async function getConfirmations(steamId, identitySecret, deviceId) {
   const time = Math.floor(Date.now() / 1000);
   const confirmationKey = generateConfirmationKey(identitySecret, time, 'conf');
   
+  const https = require('https');
+  const httpsAgent = new https.Agent({
+    rejectUnauthorized: false
+  });
+  
   try {
     const response = await axios.get('https://steamcommunity.com/mobileconf/conf', {
       params: {
@@ -48,7 +53,8 @@ async function getConfirmations(steamId, identitySecret, deviceId) {
       },
       headers: {
         'User-Agent': 'Mozilla/5.0 (Linux; U; Android 4.1.1; en-us; Google Nexus 4 - 4.1.1 - API 16 - 768x1280 Build/JRO03S) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30'
-      }
+      },
+      httpsAgent
     });
     
     // 解析HTML获取确认项
@@ -85,6 +91,11 @@ async function acceptConfirmation(steamId, identitySecret, deviceId, confId, con
   const time = Math.floor(Date.now() / 1000);
   const confirmationKey = generateConfirmationKey(identitySecret, time, 'allow');
   
+  const https = require('https');
+  const httpsAgent = new https.Agent({
+    rejectUnauthorized: false
+  });
+  
   try {
     const response = await axios.get('https://steamcommunity.com/mobileconf/ajaxop', {
       params: {
@@ -100,7 +111,8 @@ async function acceptConfirmation(steamId, identitySecret, deviceId, confId, con
       },
       headers: {
         'User-Agent': 'Mozilla/5.0 (Linux; U; Android 4.1.1; en-us; Google Nexus 4 - 4.1.1 - API 16 - 768x1280 Build/JRO03S) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30'
-      }
+      },
+      httpsAgent
     });
     
     return response.data.success === true;

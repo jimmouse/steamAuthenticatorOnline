@@ -260,7 +260,7 @@ const handleSubmit = async () => {
     try {
       if (dialogMode.value === 'create') {
         const submitData = new FormData()
-        submitData.append('file', formData.value.sdaFile)
+        submitData.append('sdaFile', formData.value.sdaFile)
         submitData.append('description', formData.value.description)
         submitData.append('password', formData.value.password)
         submitData.append('notes', formData.value.notes)
@@ -286,7 +286,10 @@ const handleSubmit = async () => {
           description: formData.value.description,
           is_active: formData.value.is_active,
           colorType: formData.value.colorType,
-          notes: formData.value.notes
+          notes: formData.value.notes,
+          email_address: formData.value.emailAddress || null,
+          email_login_url: formData.value.emailLoginUrl || null,
+          email_password: formData.value.emailPassword || null
         }
         if (formData.value.password) {
           data.password = formData.value.password

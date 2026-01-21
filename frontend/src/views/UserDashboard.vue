@@ -62,6 +62,43 @@
                 />
               </div>
             </div>
+
+            <div v-if="account.emailAddress" class="info-item">
+              <label>📧 邮箱：</label>
+              <div class="value-with-copy">
+                <span>{{ account.emailAddress }}</span>
+                <el-button
+                  size="small"
+                  :icon="DocumentCopy"
+                  @click="copyToClipboard(account.emailAddress, '邮箱')"
+                />
+                <el-button
+                  v-if="account.emailLoginUrl"
+                  size="small"
+                  type="primary"
+                  @click="openEmailLogin(account.emailLoginUrl)"
+                >
+                  登录邮箱
+                </el-button>
+              </div>
+            </div>
+
+            <div v-if="account.emailPassword" class="info-item">
+              <label>🔐 邮箱密码：</label>
+              <div class="value-with-copy">
+                <span>{{ showPassword[account.id + '_email'] ? account.emailPassword : '••••••••' }}</span>
+                <el-button
+                  size="small"
+                  :icon="showPassword[account.id + '_email'] ? Hide : View"
+                  @click="togglePassword(account.id + '_email')"
+                />
+                <el-button
+                  size="small"
+                  :icon="DocumentCopy"
+                  @click="copyToClipboard(account.emailPassword, '邮箱密码')"
+                />
+              </div>
+            </div>
             
             <div v-if="account.notes" class="info-item notes-item">
               <div class="notes-header" @click="toggleNotes(account.id)">
@@ -93,6 +130,16 @@
                   @click="copyToClipboard(account.authCode, '验证码')"
                 />
               </div>
+            </div>
+
+            <div class="info-item" style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ebeef5;">
+              <el-button
+                type="success"
+                style="width: 100%;"
+                @click="showConfirmations(account)"
+              >
+                🔑 登录/交易确认
+              </el-button>
             </div>
           </div>
         </el-card>
@@ -295,12 +342,95 @@ const handleLogout = async () => {
   router.push('/login')
 }
 
+const openEmailLogin = (url) => {
+  window.open(url, '_blank')
+}
+
 const fetchSettings = async () => {
   try {
     const response = await axios.get('/api/auth/settings')
     Object.assign(systemSettings.value, response.data.settings)
   } catch (error) {
     console.error('Failed to fetch settings:', error)
+  }
+}
+
+const showConfirmations = async (account) => {
+  currentAccount.value = account
+  confirmationDialogVisible.value = true
+  await refreshConfirmations()
+}
+
+const refreshConfirmations = async () => {
+  if (!currentAccount.value) return
+  
+  loadingConfirmations.value = true
+  try {
+    const response = await axios.get(`/api/user/accounts/${currentAccount.value.id}/confirmations`)
+    confirmations.value = response.data.confirmations.map(c => ({ ...c, processing: false }))
+  } catch (error) {
+    console.error('Failed to fetch confirmations:', error)
+    ElMessage.error('获取确认列表失败')
+  } finally {
+    loadingConfirmations.value = false
+  }
+}
+
+const handleSelectionChange = (selection) => {
+  selectedConfirmations.value = selection
+}
+
+const acceptSingleConfirmation = async (confirmation) => {
+  confirmation.processing = true
+  try {
+    await axios.post(
+      `/api/user/accounts/${currentAccount.value.id}/confirmations/${confirmation.id}/accept`,
+      { confKey: confirmation.key }
+    )
+    ElMessage.success('确认成功')
+    await refreshConfirmations()
+  } catch (error) {
+    console.error('Failed to accept confirmation:', error)
+    ElMessage.error('确认失败')
+  } finally {
+    confirmation.processing = false
+  }
+}
+
+const denySingleConfirmation = async (confirmation) => {
+  confirmation.processing = true
+  try {
+    await axios.post(
+      `/api/user/accounts/${currentAccount.value.id}/confirmations/${confirmation.id}/deny`,
+      { confKey: confirmation.key }
+    )
+    ElMessage.success('已拒绝')
+    await refreshConfirmations()
+  } catch (error) {
+    console.error('Failed to deny confirmation:', error)
+    ElMessage.error('拒绝失败')
+  } finally {
+    confirmation.processing = false
+  }
+}
+
+const acceptSelectedConfirmations = async () => {
+  if (selectedConfirmations.value.length === 0) return
+  
+  batchProcessing.value = true
+  try {
+    const confs = selectedConfirmations.value.map(c => ({ id: c.id, key: c.key }))
+    await axios.post(
+      `/api/user/accounts/${currentAccount.value.id}/confirmations/accept`,
+      { confirmations: confs }
+    )
+    ElMessage.success(`已确认 ${selectedConfirmations.value.length} 个项目`)
+    await refreshConfirmations()
+  } catch (error) {
+    console.error('Failed to accept confirmations:', error)
+    ElMessage.error('批量确认失败')
+  } finally {
+    batchProcessing.value = false
   }
 }
 

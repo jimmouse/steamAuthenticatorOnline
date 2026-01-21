@@ -32,6 +32,10 @@
               <el-icon><Postcard /></el-icon>
               <span>Steam账户</span>
             </el-menu-item>
+            <el-menu-item index="pending">
+              <el-icon><User /></el-icon>
+              <span>未激活账户</span>
+            </el-menu-item>
             <el-menu-item index="permissions">
               <el-icon><Key /></el-icon>
               <span>权限管理</span>
@@ -58,12 +62,13 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { UserFilled, User, Postcard, Key, Document, View, Setting } from '@element-plus/icons-vue'
+import { UserFilled, User, Postcard, Key, Document, View, Setting, Upload } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import AccountsPreview from '@/components/admin/AccountsPreview.vue'
 import UsersManagement from '@/components/admin/UsersManagement.vue'
 import AccountsManagement from '@/components/admin/AccountsManagement.vue'
 import PendingAccounts from '@/components/admin/PendingAccounts.vue'
+import BatchImport from '@/components/admin/BatchImport.vue'
 import PermissionsManagement from '@/components/admin/PermissionsManagement.vue'
 import LogsManagement from '@/components/admin/LogsManagement.vue'
 import SystemSettings from '@/components/admin/SystemSettings.vue'
@@ -78,6 +83,7 @@ const components = {
   users: UsersManagement,
   accounts: AccountsManagement,
   pending: PendingAccounts,
+  'batch-import': BatchImport,
   permissions: PermissionsManagement,
   logs: LogsManagement,
   settings: SystemSettings

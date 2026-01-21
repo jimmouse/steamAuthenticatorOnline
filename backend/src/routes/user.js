@@ -104,9 +104,22 @@ router.get('/accounts/:id/confirmations', async (req, res) => {
     }
     
     try {
-      const deviceId = generateDeviceID(account.username);
+      // 从sda_data中获取Steam ID
+      let steamId = account.username;
+      if (account.sda_data) {
+        try {
+          const sdaData = JSON.parse(account.sda_data);
+          if (sdaData.Session && sdaData.Session.SteamID) {
+            steamId = sdaData.Session.SteamID;
+          }
+        } catch (e) {
+          console.error('Failed to parse sda_data:', e);
+        }
+      }
+      
+      const deviceId = generateDeviceID(steamId);
       const confirmations = await getConfirmations(
-        account.username,
+        steamId,
         account.identity_secret,
         deviceId
       );
@@ -146,9 +159,22 @@ router.post('/accounts/:id/confirmations/accept', async (req, res) => {
     }
     
     try {
-      const deviceId = generateDeviceID(account.username);
+      // 从sda_data中获取Steam ID
+      let steamId = account.username;
+      if (account.sda_data) {
+        try {
+          const sdaData = JSON.parse(account.sda_data);
+          if (sdaData.Session && sdaData.Session.SteamID) {
+            steamId = sdaData.Session.SteamID;
+          }
+        } catch (e) {
+          console.error('Failed to parse sda_data:', e);
+        }
+      }
+      
+      const deviceId = generateDeviceID(steamId);
       const results = await acceptMultipleConfirmations(
-        account.username,
+        steamId,
         account.identity_secret,
         deviceId,
         confirmations
@@ -180,9 +206,22 @@ router.post('/accounts/:id/confirmations/:confId/accept', async (req, res) => {
     }
     
     try {
-      const deviceId = generateDeviceID(account.username);
+      // 从sda_data中获取Steam ID
+      let steamId = account.username;
+      if (account.sda_data) {
+        try {
+          const sdaData = JSON.parse(account.sda_data);
+          if (sdaData.Session && sdaData.Session.SteamID) {
+            steamId = sdaData.Session.SteamID;
+          }
+        } catch (e) {
+          console.error('Failed to parse sda_data:', e);
+        }
+      }
+      
+      const deviceId = generateDeviceID(steamId);
       const success = await acceptConfirmation(
-        account.username,
+        steamId,
         account.identity_secret,
         deviceId,
         confId,
@@ -215,9 +254,22 @@ router.post('/accounts/:id/confirmations/:confId/deny', async (req, res) => {
     }
     
     try {
-      const deviceId = generateDeviceID(account.username);
+      // 从sda_data中获取Steam ID
+      let steamId = account.username;
+      if (account.sda_data) {
+        try {
+          const sdaData = JSON.parse(account.sda_data);
+          if (sdaData.Session && sdaData.Session.SteamID) {
+            steamId = sdaData.Session.SteamID;
+          }
+        } catch (e) {
+          console.error('Failed to parse sda_data:', e);
+        }
+      }
+      
+      const deviceId = generateDeviceID(steamId);
       const success = await denyConfirmation(
-        account.username,
+        steamId,
         account.identity_secret,
         deviceId,
         confId,

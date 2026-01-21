@@ -38,6 +38,17 @@ const upload = multer({
   }
 });
 
+const csvUpload = multer({
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    if (path.extname(file.originalname).toLowerCase() === '.csv') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only .csv files are allowed'));
+    }
+  }
+});
+
 router.get('/users', (req, res) => {
   db.all(
     'SELECT id, username, role, created_at, last_login, last_ip, is_active FROM users ORDER BY created_at DESC',
@@ -155,7 +166,7 @@ router.delete('/users/:id', (req, res) => {
 
 router.get('/steam-accounts', (req, res) => {
   db.all(
-    'SELECT id, account_name, username, password, created_at, is_active, color_type, color_value, color_gradient FROM steam_accounts ORDER BY created_at DESC',
+    'SELECT id, account_name, username, password, created_at, is_active, color_type, color_value, color_gradient, notes, email_address, email_login_url, email_password FROM steam_accounts ORDER BY created_at DESC',
     [],
     (err, accounts) => {
       if (err) {
@@ -169,7 +180,7 @@ router.get('/steam-accounts', (req, res) => {
 
 router.post('/steam-accounts', upload.single('sdaFile'), async (req, res) => {
   try {
-    const { description, password, email_address, email_login_url, email_password } = req.body;
+    const { description, password, email_address, email_login_url, email_password, colorType, colorValue, colorGradient, notes } = req.body;
     const sdaFile = req.file;
 
     if (!sdaFile) {
@@ -181,8 +192,8 @@ router.post('/steam-accounts', upload.single('sdaFile'), async (req, res) => {
 
     db.run(
       `INSERT INTO steam_accounts 
-       (account_name, username, password, shared_secret, identity_secret, revocation_code, sda_data, created_by, color_type, color_value, color_gradient) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (account_name, username, password, shared_secret, identity_secret, revocation_code, sda_data, created_by, color_type, color_value, color_gradient, notes, email_address, email_login_url, email_password) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         description || sdaData.accountName,
         sdaData.accountName,
@@ -194,7 +205,11 @@ router.post('/steam-accounts', upload.single('sdaFile'), async (req, res) => {
         req.user.id,
         colorType || 'solid',
         colorValue || '#409eff',
-        colorGradient || null
+        colorGradient || null,
+        notes || null,
+        email_address || null,
+        email_login_url || null,
+        email_password || null
       ],
       function(err) {
         fs.unlinkSync(sdaFile.path);
@@ -221,7 +236,7 @@ router.post('/steam-accounts', upload.single('sdaFile'), async (req, res) => {
 
 router.put('/steam-accounts/:id', (req, res) => {
   const accountId = req.params.id;
-  const { description, password, is_active, colorType, colorValue, colorGradient, notes } = req.body;
+  const { description, password, is_active, colorType, colorValue, colorGradient, notes, email_address, email_login_url, email_password } = req.body;
 
   const updates = [];
   const params = [];
@@ -259,6 +274,21 @@ router.put('/steam-accounts/:id', (req, res) => {
   if (notes !== undefined) {
     updates.push('notes = ?');
     params.push(notes);
+  }
+
+  if (email_address !== undefined) {
+    updates.push('email_address = ?');
+    params.push(email_address);
+  }
+
+  if (email_login_url !== undefined) {
+    updates.push('email_login_url = ?');
+    params.push(email_login_url);
+  }
+
+  if (email_password !== undefined) {
+    updates.push('email_password = ?');
+    params.push(email_password);
   }
 
   if (updates.length === 0) {
@@ -776,6 +806,120 @@ router.post('/steam-accounts/:id/confirmations/:confId/deny', async (req, res) =
       res.status(500).json({ error: 'Failed to deny confirmation', message: error.message });
     }
   });
+});
+
+// 批量导入Steam账户
+router.post('/steam-accounts/batch-import', csvUpload.single('csvFile'), async (req, res) => {
+  const { parse } = require('csv-parse/sync');
+  
+  if (!req.file) {
+    return res.status(400).json({ error: 'CSV file required' });
+  }
+
+  try {
+    const csvContent = fs.readFileSync(req.file.path, 'utf8');
+    fs.unlinkSync(req.file.path);
+
+    const records = parse(csvContent, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true
+    });
+
+    const results = {
+      total: records.length,
+      success: 0,
+      failed: 0,
+      errors: []
+    };
+
+    for (let i = 0; i < records.length; i++) {
+      const record = records[i];
+      const rowNum = i + 2; // +2 because row 1 is header and array is 0-indexed
+
+      try {
+        // 验证必填字段
+        if (!record.s_name || !record.s_pass || !record.mafile_content) {
+          results.failed++;
+          results.errors.push({
+            row: rowNum,
+            error: 'Missing required fields (s_name, s_pass, mafile_content)'
+          });
+          continue;
+        }
+
+        // 解析mafile内容
+        let maFileData;
+        try {
+          maFileData = JSON.parse(record.mafile_content);
+        } catch (e) {
+          results.failed++;
+          results.errors.push({
+            row: rowNum,
+            error: 'Invalid mafile JSON format'
+          });
+          continue;
+        }
+
+        // 验证mafile必要字段
+        if (!maFileData.shared_secret || !maFileData.identity_secret) {
+          results.failed++;
+          results.errors.push({
+            row: rowNum,
+            error: 'mafile missing required fields (shared_secret, identity_secret)'
+          });
+          continue;
+        }
+
+        // 插入数据库
+        await new Promise((resolve, reject) => {
+          db.run(
+            `INSERT INTO steam_accounts 
+             (account_name, username, password, shared_secret, identity_secret, 
+              color_type, color_value, notes, email_address, email_login_url, email_password) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              record.description || record.s_name,
+              record.s_name,
+              record.s_pass,
+              maFileData.shared_secret,
+              maFileData.identity_secret,
+              'solid',
+              '#409eff',
+              null,
+              record.email || null,
+              record.e_url || null,
+              record.e_pass || null
+            ],
+            function(err) {
+              if (err) {
+                reject(err);
+              } else {
+                resolve(this.lastID);
+              }
+            }
+          );
+        });
+
+        results.success++;
+      } catch (error) {
+        results.failed++;
+        results.errors.push({
+          row: rowNum,
+          error: error.message
+        });
+      }
+    }
+
+    res.json({
+      message: 'Batch import completed',
+      results
+    });
+
+  } catch (error) {
+    console.error('Batch import error:', error);
+    res.status(500).json({ error: 'Failed to process CSV file', message: error.message });
+  }
 });
 
 // 系统设置管理
