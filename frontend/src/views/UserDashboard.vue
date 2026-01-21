@@ -291,15 +291,21 @@ const userBgStyle = computed(() => {
 
 const fetchAccounts = async () => {
   try {
+    console.log('[FETCH_ACCOUNTS] Starting request...')
+    console.log('[FETCH_ACCOUNTS] Current user:', authStore.user)
+    console.log('[FETCH_ACCOUNTS] Token exists:', !!authStore.token)
+    
     const response = await axios.get('/api/user/accounts')
     console.log('[FETCH_ACCOUNTS] Response:', response.data)
-    console.log('[FETCH_ACCOUNTS] User:', authStore.user)
+    console.log('[FETCH_ACCOUNTS] Accounts count:', response.data.accounts?.length || 0)
+    
     accounts.value = response.data.accounts
     if (accounts.value.length === 0) {
       console.warn('[FETCH_ACCOUNTS] No accounts returned from API')
     }
   } catch (error) {
-    console.error('Failed to fetch accounts:', error)
+    console.error('[FETCH_ACCOUNTS] Error:', error)
+    console.error('[FETCH_ACCOUNTS] Error response:', error.response?.data)
     ElMessage.error('获取账户列表失败：' + (error.response?.data?.error || error.message))
   } finally {
     loading.value = false
