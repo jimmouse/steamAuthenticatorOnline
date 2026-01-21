@@ -19,6 +19,14 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",
-    "vite": "^5.0.8"
-  }
+    "vite": "^5.0.8",
+    "terser": "^5.16.0"
+  },
+  "browserslist": [
+    "> 0.5%",
+    "last 2 versions",
+    "Firefox ESR",
+    "not dead",
+    "Chrome >= 60"
+  ]
 }

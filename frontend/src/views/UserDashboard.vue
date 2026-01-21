@@ -297,7 +297,7 @@ const fetchAccounts = async () => {
     
     const response = await axios.get('/api/user/accounts')
     console.log('[FETCH_ACCOUNTS] Response:', response.data)
-    console.log('[FETCH_ACCOUNTS] Accounts count:', response.data.accounts?.length || 0)
+    console.log('[FETCH_ACCOUNTS] Accounts count:', (response.data.accounts && response.data.accounts.length) || 0)
     
     accounts.value = response.data.accounts
     if (accounts.value.length === 0) {
@@ -305,8 +305,8 @@ const fetchAccounts = async () => {
     }
   } catch (error) {
     console.error('[FETCH_ACCOUNTS] Error:', error)
-    console.error('[FETCH_ACCOUNTS] Error response:', error.response?.data)
-    ElMessage.error('获取账户列表失败：' + (error.response?.data?.error || error.message))
+    console.error('[FETCH_ACCOUNTS] Error response:', error.response && error.response.data)
+    ElMessage.error('获取账户列表失败：' + ((error.response && error.response.data && error.response.data.error) || error.message))
   } finally {
     loading.value = false
   }
