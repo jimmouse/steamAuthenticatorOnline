@@ -40,6 +40,10 @@
               <el-icon><Document /></el-icon>
               <span>登录日志</span>
             </el-menu-item>
+            <el-menu-item index="settings">
+              <el-icon><Setting /></el-icon>
+              <span>个性化设置</span>
+            </el-menu-item>
           </el-menu>
         </el-aside>
         
@@ -54,13 +58,14 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { UserFilled, User, Postcard, Key, Document, View } from '@element-plus/icons-vue'
+import { UserFilled, User, Postcard, Key, Document, View, Setting } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import AccountsPreview from '@/components/admin/AccountsPreview.vue'
 import UsersManagement from '@/components/admin/UsersManagement.vue'
 import AccountsManagement from '@/components/admin/AccountsManagement.vue'
 import PermissionsManagement from '@/components/admin/PermissionsManagement.vue'
 import LogsManagement from '@/components/admin/LogsManagement.vue'
+import SystemSettings from '@/components/admin/SystemSettings.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()

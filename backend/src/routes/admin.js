@@ -564,4 +564,145 @@ router.put('/api-keys/:id', (req, res) => {
   );
 });
 
+// 未激活账户管理
+router.get('/pending-accounts', (req, res) => {
+  db.all('SELECT * FROM pending_steam_accounts ORDER BY created_at DESC', [], (err, accounts) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+    res.json({ accounts });
+  });
+});
+
+router.post('/pending-accounts', (req, res) => {
+  const { username, password, email, notes } = req.body;
+  
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password are required' });
+  }
+  
+  db.run(
+    'INSERT INTO pending_steam_accounts (username, password, email, notes) VALUES (?, ?, ?, ?)',
+    [username, password, email, notes],
+    function(err) {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Failed to create pending account' });
+      }
+      res.json({ 
+        id: this.lastID,
+        message: 'Pending account created successfully'
+      });
+    }
+  );
+});
+
+router.post('/pending-accounts/generate', (req, res) => {
+  const { emailDomain } = req.body;
+  const { generateUsername, generatePassword, generateEmail } = require('../utils/steamRegister');
+  
+  const username = generateUsername();
+  const password = generatePassword();
+  const email = generateEmail(username, emailDomain);
+  
+  res.json({
+    username,
+    password,
+    email,
+    steamRegisterUrl: 'https://store.steampowered.com/join/'
+  });
+});
+
+router.delete('/pending-accounts/:id', (req, res) => {
+  const { id } = req.params;
+  
+  db.run('DELETE FROM pending_steam_accounts WHERE id = ?', [id], function(err) {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+    res.json({ message: 'Account deleted successfully' });
+  });
+});
+
+router.post('/pending-accounts/:id/activate', (req, res) => {
+  const { id } = req.params;
+  const { accountName, description } = req.body;
+  
+  // 获取待激活账户信息
+  db.get('SELECT * FROM pending_steam_accounts WHERE id = ?', [id], (err, pending) => {
+    if (err || !pending) {
+      return res.status(404).json({ error: 'Pending account not found' });
+    }
+    
+    // 更新状态为已激活
+    db.run(
+      'UPDATE pending_steam_accounts SET status = ?, activated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      ['activated', id],
+      (err) => {
+        if (err) {
+          console.error('Database error:', err);
+          return res.status(500).json({ error: 'Failed to update status' });
+        }
+        
+        res.json({ 
+          message: 'Account marked as activated',
+          accountName: accountName || pending.username,
+          username: pending.username,
+          password: pending.password
+        });
+      }
+    );
+  });
+});
+
+// 系统设置管理
+router.get('/settings', (req, res) => {
+  db.all('SELECT setting_key, setting_value FROM system_settings', [], (err, settings) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+    
+    const settingsObj = {};
+    settings.forEach(s => {
+      settingsObj[s.setting_key] = s.setting_value;
+    });
+    
+    res.json({ settings: settingsObj });
+  });
+});
+
+router.put('/settings', (req, res) => {
+  const { settings } = req.body;
+  
+  if (!settings || typeof settings !== 'object') {
+    return res.status(400).json({ error: 'Invalid settings data' });
+  }
+  
+  const stmt = db.prepare('INSERT OR REPLACE INTO system_settings (setting_key, setting_value, updated_by, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)');
+  
+  let updated = 0;
+  const keys = Object.keys(settings);
+  
+  keys.forEach((key, index) => {
+    stmt.run(key, settings[key], req.user.id, (err) => {
+      if (err) {
+        console.error(`Error updating ${key}:`, err);
+      } else {
+        updated++;
+      }
+      
+      if (index === keys.length - 1) {
+        stmt.finalize();
+        res.json({ message: 'Settings updated successfully', updated });
+      }
+    });
+  });
+});
+
 module.exports = router;

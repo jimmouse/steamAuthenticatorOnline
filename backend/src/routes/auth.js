@@ -80,4 +80,22 @@ router.post('/logout', (req, res) => {
   res.json({ message: 'Logged out successfully' });
 });
 
+// 公共设置接口（不需要认证）
+router.get('/settings', (req, res) => {
+  const db = require('../config/database');
+  db.all('SELECT setting_key, setting_value FROM system_settings', [], (err, settings) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+    
+    const settingsObj = {};
+    settings.forEach(s => {
+      settingsObj[s.setting_key] = s.setting_value;
+    });
+    
+    res.json({ settings: settingsObj });
+  });
+});
+
 module.exports = router;

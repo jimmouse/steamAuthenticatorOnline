@@ -276,6 +276,8 @@ onUnmounted(() => {
   width: 100%;
   max-width: 600px;
   transition: transform 0.2s;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .account-card:hover {

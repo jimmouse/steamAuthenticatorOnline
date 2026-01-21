@@ -357,6 +357,8 @@ onMounted(() => {
 
 .account-card {
   transition: transform 0.2s;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .account-card:hover {

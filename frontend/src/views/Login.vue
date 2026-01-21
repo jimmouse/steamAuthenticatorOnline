@@ -1,5 +1,5 @@
 <template>
-  <div class="login-container">
+  <div class="login-container" :style="loginBgStyle">
     <el-card class="login-card">
       <template #header>
         <div class="card-header">
@@ -48,16 +48,35 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
+import axios from 'axios'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
 const loginFormRef = ref(null)
 const loading = ref(false)
+const systemSettings = ref({
+  login_bg_type: 'solid',
+  login_bg_color: '#409eff',
+  login_bg_gradient: null
+})
+
+const loginBgStyle = computed(() => {
+  if (systemSettings.value.login_bg_type === 'gradient' && systemSettings.value.login_bg_gradient) {
+    const colors = systemSettings.value.login_bg_gradient.split(',')
+    return {
+      background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 100%)`
+    }
+  } else {
+    return {
+      background: systemSettings.value.login_bg_color || '#409eff'
+    }
+  }
+})
 
 const loginForm = reactive({
   username: '',
@@ -101,15 +120,28 @@ const handleLogin = async () => {
     }
   })
 }
+
+const fetchSettings = async () => {
+  try {
+    const response = await axios.get('http://localhost:3010/api/auth/settings')
+    Object.assign(systemSettings.value, response.data.settings)
+  } catch (error) {
+    console.error('Failed to fetch settings:', error)
+  }
+}
+
+onMounted(() => {
+  fetchSettings()
+})
 </script>
 
 <style scoped>
 .login-container {
+  min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  transition: background 0.3s ease;
 }
 
 .login-card {

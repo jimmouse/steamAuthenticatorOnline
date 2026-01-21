@@ -1,5 +1,5 @@
 <template>
-  <div class="user-dashboard">
+  <div class="user-dashboard" :style="userBgStyle">
     <div v-if="loading" class="loading-container">
       <el-icon class="is-loading" :size="40"><Loading /></el-icon>
     </div>
@@ -108,7 +108,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Avatar, DocumentCopy, View, Hide, Loading, ArrowDown } from '@element-plus/icons-vue'
@@ -123,6 +123,25 @@ const loading = ref(true)
 const showPassword = reactive({})
 const expandedNotes = reactive({})
 let refreshInterval = null
+
+const systemSettings = ref({
+  user_bg_type: 'solid',
+  user_bg_color: '#f5f7fa',
+  user_bg_gradient: null
+})
+
+const userBgStyle = computed(() => {
+  if (systemSettings.value.user_bg_type === 'gradient' && systemSettings.value.user_bg_gradient) {
+    const colors = systemSettings.value.user_bg_gradient.split(',')
+    return {
+      background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 100%)`
+    }
+  } else {
+    return {
+      background: systemSettings.value.user_bg_color || '#f5f7fa'
+    }
+  }
+})
 
 const fetchAccounts = async () => {
   try {
@@ -199,7 +218,17 @@ const handleLogout = async () => {
   router.push('/login')
 }
 
+const fetchSettings = async () => {
+  try {
+    const response = await axios.get('/api/auth/settings')
+    Object.assign(systemSettings.value, response.data.settings)
+  } catch (error) {
+    console.error('Failed to fetch settings:', error)
+  }
+}
+
 onMounted(() => {
+  fetchSettings()
   fetchAccounts()
   refreshInterval = setInterval(updateTimeRemaining, 1000)
 })
@@ -214,7 +243,7 @@ onUnmounted(() => {
 <style scoped>
 .user-dashboard {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  transition: background 0.3s ease;
   padding: 40px 20px;
   display: flex;
   flex-direction: column;
@@ -227,7 +256,6 @@ onUnmounted(() => {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .empty-state {
@@ -236,7 +264,6 @@ onUnmounted(() => {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .accounts-container {
@@ -265,6 +292,8 @@ onUnmounted(() => {
 
 .account-card {
   transition: transform 0.2s;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .account-card:hover {
