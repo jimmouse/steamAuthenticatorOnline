@@ -22,9 +22,14 @@
           shadow="hover"
         >
           <template #header>
-            <div class="card-header">
-              <el-icon><Avatar /></el-icon>
-              <span class="account-name">{{ account.accountName }}</span>
+            <div 
+              class="card-banner" 
+              :style="getCardBannerStyle(account)"
+            >
+              <div class="banner-content">
+                <el-icon><Avatar /></el-icon>
+                <span class="account-name">{{ account.accountName }}</span>
+              </div>
             </div>
           </template>
           
@@ -55,6 +60,13 @@
                   :icon="DocumentCopy"
                   @click="copyToClipboard(account.password, '密码')"
                 />
+              </div>
+            </div>
+            
+            <div v-if="account.notes" class="info-item notes-item">
+              <label>📝 备注：</label>
+              <div class="notes-content">
+                <span class="notes-text">{{ account.notes }}</span>
               </div>
             </div>
             
@@ -161,6 +173,19 @@ const getProgressColor = (timeRemaining) => {
   return '#f56c6c'
 }
 
+const getCardBannerStyle = (account) => {
+  if (account.colorType === 'gradient' && account.colorGradient) {
+    const colors = account.colorGradient.split(',')
+    return {
+      background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 100%)`
+    }
+  } else {
+    return {
+      background: account.colorValue || '#409eff'
+    }
+  }
+}
+
 const handleLogout = async () => {
   await authStore.logout()
   router.push('/login')
@@ -238,7 +263,18 @@ onUnmounted(() => {
   transform: translateY(-4px);
 }
 
-.card-header {
+.account-card :deep(.el-card__header) {
+  padding: 0;
+  border-bottom: none;
+}
+
+.card-banner {
+  padding: 20px;
+  color: white;
+  border-radius: 4px 4px 0 0;
+}
+
+.banner-content {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -247,7 +283,7 @@ onUnmounted(() => {
 }
 
 .account-name {
-  color: #409eff;
+  color: white;
 }
 
 .account-info {
@@ -317,6 +353,30 @@ onUnmounted(() => {
   text-align: center;
   font-size: 12px;
   color: #909399;
+}
+
+.notes-item {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  padding-top: 10px;
+  border-top: 1px dashed #ebeef5;
+}
+
+.notes-content {
+  width: 100%;
+  padding: 10px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+}
+
+.notes-text {
+  font-family: 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+  color: #606266;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 14px;
 }
 
 .logout-container {

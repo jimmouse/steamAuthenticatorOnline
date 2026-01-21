@@ -30,9 +30,14 @@
     <div v-else-if="selectedAccount" class="preview-container">
       <el-card class="account-card" shadow="hover">
         <template #header>
-          <div class="card-header">
-            <el-icon><Avatar /></el-icon>
-            <span class="account-name">{{ selectedAccount.accountName }}</span>
+          <div 
+            class="card-banner" 
+            :style="getCardBannerStyle(selectedAccount)"
+          >
+            <div class="banner-content">
+              <el-icon><Avatar /></el-icon>
+              <span class="account-name">{{ selectedAccount.accountName }}</span>
+            </div>
           </div>
         </template>
         
@@ -109,9 +114,12 @@ let refreshInterval = null
 const fetchAllAccounts = async () => {
   try {
     const response = await axios.get('/api/admin/steam-accounts')
+    console.log('Fetched accounts:', response.data)
     allAccounts.value = response.data.accounts
+    console.log('All accounts:', allAccounts.value)
   } catch (error) {
     console.error('Failed to fetch accounts:', error)
+    ElMessage.error('获取账户列表失败')
   }
 }
 
@@ -119,7 +127,17 @@ const fetchAccountDetails = async (accountId) => {
   loading.value = true
   try {
     const response = await axios.get(`/api/admin/steam-accounts/${accountId}/preview`)
-    selectedAccount.value = response.data
+    const account = response.data
+    
+    // 从 allAccounts 中获取颜色信息
+    const accountInfo = allAccounts.value.find(a => a.id === accountId)
+    if (accountInfo) {
+      account.colorType = accountInfo.color_type
+      account.colorValue = accountInfo.color_value
+      account.colorGradient = accountInfo.color_gradient
+    }
+    
+    selectedAccount.value = account
   } catch (error) {
     console.error('Failed to fetch account details:', error)
     ElMessage.error('获取账户详情失败')
@@ -237,7 +255,18 @@ onUnmounted(() => {
   transform: translateY(-4px);
 }
 
-.card-header {
+.account-card :deep(.el-card__header) {
+  padding: 0;
+  border-bottom: none;
+}
+
+.card-banner {
+  padding: 20px;
+  color: white;
+  border-radius: 4px 4px 0 0;
+}
+
+.banner-content {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -246,7 +275,7 @@ onUnmounted(() => {
 }
 
 .account-name {
-  color: #409eff;
+  color: white;
 }
 
 .account-info {

@@ -155,7 +155,7 @@ router.delete('/users/:id', (req, res) => {
 
 router.get('/steam-accounts', (req, res) => {
   db.all(
-    'SELECT id, account_name, username, created_at, is_active FROM steam_accounts ORDER BY created_at DESC',
+    'SELECT id, account_name, username, password, created_at, is_active, color_type, color_value, color_gradient FROM steam_accounts ORDER BY created_at DESC',
     [],
     (err, accounts) => {
       if (err) {
@@ -169,7 +169,7 @@ router.get('/steam-accounts', (req, res) => {
 
 router.post('/steam-accounts', upload.single('sdaFile'), async (req, res) => {
   try {
-    const { username, password, accountName } = req.body;
+    const { password, description, colorType, colorValue, colorGradient } = req.body;
     const sdaFile = req.file;
 
     if (!sdaFile) {
@@ -179,21 +179,22 @@ router.post('/steam-accounts', upload.single('sdaFile'), async (req, res) => {
     const sdaContent = fs.readFileSync(sdaFile.path, 'utf8');
     const sdaData = parseSdaFile(sdaContent);
 
-    const finalAccountName = accountName || sdaData.accountName;
-
     db.run(
       `INSERT INTO steam_accounts 
-       (account_name, username, password, shared_secret, identity_secret, revocation_code, sda_data, created_by) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       (account_name, username, password, shared_secret, identity_secret, revocation_code, sda_data, created_by, color_type, color_value, color_gradient) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        finalAccountName,
-        username || sdaData.accountName,
+        description || sdaData.accountName,
+        sdaData.accountName,
         password || '',
         sdaData.sharedSecret,
         sdaData.identitySecret,
         sdaData.revocationCode,
         JSON.stringify(sdaData.fullData),
-        req.user.id
+        req.user.id,
+        colorType || 'solid',
+        colorValue || '#409eff',
+        colorGradient || null
       ],
       function(err) {
         fs.unlinkSync(sdaFile.path);
@@ -220,19 +221,14 @@ router.post('/steam-accounts', upload.single('sdaFile'), async (req, res) => {
 
 router.put('/steam-accounts/:id', (req, res) => {
   const accountId = req.params.id;
-  const { accountName, username, password, is_active } = req.body;
+  const { description, password, is_active, colorType, colorValue, colorGradient, notes } = req.body;
 
   const updates = [];
   const params = [];
 
-  if (accountName) {
+  if (description !== undefined) {
     updates.push('account_name = ?');
-    params.push(accountName);
-  }
-
-  if (username) {
-    updates.push('username = ?');
-    params.push(username);
+    params.push(description);
   }
 
   if (password) {
@@ -243,6 +239,26 @@ router.put('/steam-accounts/:id', (req, res) => {
   if (typeof is_active !== 'undefined') {
     updates.push('is_active = ?');
     params.push(is_active ? 1 : 0);
+  }
+
+  if (colorType) {
+    updates.push('color_type = ?');
+    params.push(colorType);
+  }
+
+  if (colorValue) {
+    updates.push('color_value = ?');
+    params.push(colorValue);
+  }
+
+  if (colorGradient !== undefined) {
+    updates.push('color_gradient = ?');
+    params.push(colorGradient);
+  }
+
+  if (notes !== undefined) {
+    updates.push('notes = ?');
+    params.push(notes);
   }
 
   if (updates.length === 0) {

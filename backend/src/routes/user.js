@@ -17,7 +17,11 @@ router.get('/accounts', (req, res) => {
       sa.username,
       sa.password,
       sa.shared_secret,
-      sa.identity_secret
+      sa.identity_secret,
+      sa.color_type,
+      sa.color_value,
+      sa.color_gradient,
+      sa.notes
     FROM steam_accounts sa
     INNER JOIN user_permissions up ON sa.id = up.steam_account_id
     WHERE up.user_id = ? AND sa.is_active = 1
@@ -36,7 +40,10 @@ router.get('/accounts', (req, res) => {
       username: account.username,
       password: account.password,
       authCode: generateAuthCode(account.shared_secret),
-      timeRemaining: getTimeRemaining()
+      timeRemaining: getTimeRemaining(),
+      colorType: account.color_type,
+      colorValue: account.color_value,
+      colorGradient: account.color_gradient
     }));
 
     res.json({ accounts: accountsWithCode });

@@ -7,32 +7,61 @@
       </el-button>
     </div>
 
-    <el-table :data="accounts" stripe style="width: 100%">
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="account_name" label="账户名称" />
-      <el-table-column prop="username" label="用户名" />
-      <el-table-column prop="created_at" label="创建时间" width="180" />
-      <el-table-column prop="is_active" label="状态" width="100">
-        <template #default="{ row }">
-          <el-tag :type="row.is_active ? 'success' : 'info'">
-            {{ row.is_active ? '启用' : '禁用' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="180" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" @click="showEditDialog(row)">编辑</el-button>
-          <el-popconfirm
-            title="确定删除此账户吗？"
-            @confirm="deleteAccount(row.id)"
+    <div class="accounts-grid">
+      <el-card
+        v-for="account in accounts"
+        :key="account.id"
+        class="account-card"
+        shadow="hover"
+      >
+        <template #header>
+          <div 
+            class="card-banner" 
+            :style="getCardBannerStyle(account)"
           >
-            <template #reference>
-              <el-button size="small" type="danger">删除</el-button>
-            </template>
-          </el-popconfirm>
+            <div class="banner-content">
+              <h3>{{ account.account_name }}</h3>
+              <el-tag :type="account.is_active ? 'success' : 'info'" size="small">
+                {{ account.is_active ? '启用' : '禁用' }}
+              </el-tag>
+            </div>
+          </div>
         </template>
-      </el-table-column>
-    </el-table>
+        
+        <div class="account-details">
+          <div class="detail-item">
+            <span class="label">用户名：</span>
+            <span class="value">{{ account.username }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">密码：</span>
+            <span class="value">{{ account.password ? '••••••••' : '未设置' }}</span>
+          </div>
+          <div v-if="account.notes" class="detail-item notes-item">
+            <span class="label">备注：</span>
+            <span class="value notes-text">{{ account.notes }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">创建时间：</span>
+            <span class="value">{{ new Date(account.created_at).toLocaleString('zh-CN') }}</span>
+          </div>
+        </div>
+        
+        <template #footer>
+          <div class="card-actions">
+            <el-button size="small" @click="showEditDialog(account)">编辑</el-button>
+            <el-popconfirm
+              title="确定删除此账户吗？"
+              @confirm="deleteAccount(account.id)"
+            >
+              <template #reference>
+                <el-button size="small" type="danger">删除</el-button>
+              </template>
+            </el-popconfirm>
+          </div>
+        </template>
+      </el-card>
+    </div>
 
     <el-dialog
       v-model="dialogVisible"
@@ -61,14 +90,27 @@
             </template>
           </el-upload>
         </el-form-item>
-        <el-form-item label="账户名称" prop="accountName">
-          <el-input v-model="formData.accountName" placeholder="可选，留空则使用 SDA 文件中的账户名" />
-        </el-form-item>
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="formData.username" placeholder="Steam 登录用户名" />
+        <el-form-item label="描述" prop="description">
+          <el-input v-model="formData.description" placeholder="可选，留空则使用 SDA 文件中的账户名" />
         </el-form-item>
         <el-form-item label="密码" prop="password">
           <el-input v-model="formData.password" type="password" placeholder="Steam 登录密码" />
+        </el-form-item>
+        <el-form-item label="卡片颜色" prop="colorType">
+          <el-radio-group v-model="formData.colorType">
+            <el-radio value="solid">单色</el-radio>
+            <el-radio value="gradient">渐变</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item v-if="formData.colorType === 'solid'" label="颜色值">
+          <el-color-picker v-model="formData.colorValue" />
+        </el-form-item>
+        <el-form-item v-if="formData.colorType === 'gradient'" label="渐变色">
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <el-color-picker v-model="formData.gradientStart" />
+            <span>到</span>
+            <el-color-picker v-model="formData.gradientEnd" />
+          </div>
         </el-form-item>
         <el-form-item v-if="dialogMode === 'edit'" label="状态" prop="is_active">
           <el-switch v-model="formData.is_active" />
@@ -98,11 +140,14 @@ const formRef = ref(null)
 const uploadRef = ref(null)
 const formData = ref({
   id: null,
-  accountName: '',
-  username: '',
+  description: '',
   password: '',
   sdaFile: null,
-  is_active: true
+  is_active: true,
+  colorType: 'solid',
+  colorValue: '#409eff',
+  gradientStart: '#667eea',
+  gradientEnd: '#764ba2'
 })
 
 const rules = {
@@ -134,24 +179,31 @@ const showCreateDialog = () => {
   dialogMode.value = 'create'
   formData.value = {
     id: null,
-    accountName: '',
-    username: '',
+    description: '',
     password: '',
     sdaFile: null,
-    is_active: true
+    is_active: true,
+    colorType: 'solid',
+    colorValue: '#409eff',
+    gradientStart: '#667eea',
+    gradientEnd: '#764ba2'
   }
   dialogVisible.value = true
 }
 
 const showEditDialog = (account) => {
   dialogMode.value = 'edit'
+  const gradientColors = account.color_gradient ? account.color_gradient.split(',') : ['#667eea', '#764ba2']
   formData.value = {
     id: account.id,
-    accountName: account.account_name,
-    username: account.username,
+    description: account.account_name,
     password: '',
     sdaFile: null,
-    is_active: account.is_active === 1
+    is_active: account.is_active === 1,
+    colorType: account.color_type || 'solid',
+    colorValue: account.color_value || '#409eff',
+    gradientStart: gradientColors[0],
+    gradientEnd: gradientColors[1]
   }
   dialogVisible.value = true
 }
@@ -167,14 +219,17 @@ const handleSubmit = async () => {
       if (dialogMode.value === 'create') {
         const formDataToSend = new FormData()
         formDataToSend.append('sdaFile', formData.value.sdaFile)
-        if (formData.value.accountName) {
-          formDataToSend.append('accountName', formData.value.accountName)
-        }
-        if (formData.value.username) {
-          formDataToSend.append('username', formData.value.username)
+        if (formData.value.description) {
+          formDataToSend.append('description', formData.value.description)
         }
         if (formData.value.password) {
           formDataToSend.append('password', formData.value.password)
+        }
+        formDataToSend.append('colorType', formData.value.colorType)
+        if (formData.value.colorType === 'solid') {
+          formDataToSend.append('colorValue', formData.value.colorValue)
+        } else {
+          formDataToSend.append('colorGradient', `${formData.value.gradientStart},${formData.value.gradientEnd}`)
         }
         
         await axios.post('/api/admin/steam-accounts', formDataToSend, {
@@ -185,12 +240,20 @@ const handleSubmit = async () => {
         ElMessage.success('Steam 账户添加成功')
       } else {
         const data = {
-          accountName: formData.value.accountName,
-          username: formData.value.username,
-          is_active: formData.value.is_active
+          description: formData.value.description,
+          is_active: formData.value.is_active,
+          colorType: formData.value.colorType,
+          notes: formData.value.notes
         }
         if (formData.value.password) {
           data.password = formData.value.password
+        }
+        if (formData.value.colorType === 'solid') {
+          data.colorValue = formData.value.colorValue
+          data.colorGradient = null
+        } else {
+          data.colorGradient = `${formData.value.gradientStart},${formData.value.gradientEnd}`
+          data.colorValue = null
         }
         await axios.put(`/api/admin/steam-accounts/${formData.value.id}`, data)
         ElMessage.success('Steam 账户更新成功')
@@ -215,6 +278,19 @@ const deleteAccount = async (accountId) => {
   }
 }
 
+const getCardBannerStyle = (account) => {
+  if (account.color_type === 'gradient' && account.color_gradient) {
+    const colors = account.color_gradient.split(',')
+    return {
+      background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 100%)`
+    }
+  } else {
+    return {
+      background: account.color_value || '#409eff'
+    }
+  }
+}
+
 onMounted(() => {
   fetchAccounts()
 })
@@ -234,5 +310,71 @@ onMounted(() => {
 
 .toolbar h3 {
   margin: 0;
+}
+
+.accounts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+.account-card {
+  transition: transform 0.2s;
+}
+
+.account-card:hover {
+  transform: translateY(-4px);
+}
+
+.account-card :deep(.el-card__header) {
+  padding: 0;
+  border-bottom: none;
+}
+
+.card-banner {
+  padding: 20px;
+  color: white;
+  border-radius: 4px 4px 0 0;
+}
+
+.banner-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.banner-content h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.account-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+}
+
+.detail-item .label {
+  font-weight: 500;
+  color: #606266;
+  min-width: 80px;
+}
+
+.detail-item .value {
+  color: #303133;
+  font-family: monospace;
+}
+
+.card-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
 }
 </style>
