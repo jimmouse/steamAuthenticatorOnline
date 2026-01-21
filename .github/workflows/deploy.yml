@@ -1,0 +1,116 @@
+name: Deploy to Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        type: choice
+        options:
+          - production
+          - staging
+      version:
+        description: 'Version/Tag to deploy (leave empty for latest)'
+        required: false
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          VERSION: ${{ github.event.inputs.version || 'latest' }}
+        run: |
+          ssh $SERVER_USER@$SERVER_HOST << 'EOF'
+            set -e
+            
+            # 进入部署目录
+            cd ${{ secrets.DEPLOY_PATH }}
+            
+            # 备份当前版本
+            if [ -d "backup" ]; then
+              rm -rf backup.old
+              mv backup backup.old
+            fi
+            mkdir -p backup
+            cp -r . backup/ 2>/dev/null || true
+            
+            # 拉取最新代码
+            git fetch --all
+            git checkout ${{ env.VERSION }}
+            git pull origin ${{ env.VERSION }}
+            
+            # 设置环境变量
+            if [ ! -f .env ]; then
+              cp .env.example .env
+              echo "⚠️  Please configure .env file!"
+            fi
+            
+            # 拉取最新镜像
+            docker-compose pull
+            
+            # 停止旧服务
+            docker-compose down
+            
+            # 启动新服务
+            docker-compose up -d
+            
+            # 等待服务启动
+            echo "Waiting for services to start..."
+            sleep 10
+            
+            # 检查服务状态
+            docker-compose ps
+            
+            # 检查健康状态
+            echo "Checking health..."
+            curl -f http://localhost:3010/health || echo "Backend health check failed"
+            curl -f http://localhost:3020/health || echo "Steam service health check failed"
+            
+            echo "✅ Deployment completed!"
+          EOF
+
+      - name: Verify deployment
+        run: |
+          echo "## Deployment Summary 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ github.event.inputs.version || 'latest' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Time**: $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Services" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend: http://${{ secrets.SERVER_HOST }}:3010" >> $GITHUB_STEP_SUMMARY
+          echo "- Frontend: http://${{ secrets.SERVER_HOST }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Steam Service: http://${{ secrets.SERVER_HOST }}:3020" >> $GITHUB_STEP_SUMMARY
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+            cd ${{ secrets.DEPLOY_PATH }}
+            docker-compose down
+            rm -rf ./*
+            cp -r backup/* .
+            docker-compose up -d
+            echo "⚠️  Rolled back to previous version"
+          EOF

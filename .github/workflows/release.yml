@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # 获取上一个tag
+          PREVIOUS_TAG=$(git describe --abbrev=0 --tags $(git rev-list --tags --skip=1 --max-count=1) 2>/dev/null || echo "")
+          
+          if [ -z "$PREVIOUS_TAG" ]; then
+            # 如果没有上一个tag，获取所有提交
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            # 获取两个tag之间的提交
+            CHANGELOG=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+          
+          # 保存到文件
+          echo "$CHANGELOG" > CHANGELOG.txt
+          
+          # 输出到GitHub
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body: |
+            ## 🎉 Release ${{ github.ref_name }}
+            
+            ### 📝 Changes
+            ${{ steps.changelog.outputs.changelog }}
+            
+            ### 🚀 Docker Images
+            
+            Pull the images:
+            ```bash
+            docker pull ghcr.io/${{ github.repository }}/backend:${{ github.ref_name }}
+            docker pull ghcr.io/${{ github.repository }}/frontend:${{ github.ref_name }}
+            docker pull ghcr.io/${{ github.repository }}/steam-service:${{ github.ref_name }}
+            ```
+            
+            Or use docker-compose:
+            ```bash
+            # Download docker-compose.yml
+            wget https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/docker-compose.yml
+            
+            # Set environment variables
+            cp .env.example .env
+            # Edit .env file
+            
+            # Start services
+            docker-compose up -d
+            ```
+            
+            ### 📚 Documentation
+            - [Deployment Guide](DEPLOY.md)
+            - [Docker Guide](README.Docker.md)
+            - [Steam Service Integration](steam-service/INTEGRATION.md)
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-and-push-release:
+    needs: create-release
+    uses: ./.github/workflows/docker-build.yml
+    secrets: inherit
