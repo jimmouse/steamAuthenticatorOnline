@@ -32,9 +32,13 @@
               <el-icon><Postcard /></el-icon>
               <span>Steam账户</span>
             </el-menu-item>
-            <el-menu-item index="pending">
-              <el-icon><User /></el-icon>
-              <span>未激活账户</span>
+            <el-menu-item index="batch-import">
+              <el-icon><Upload /></el-icon>
+              <span>批量导入</span>
+            </el-menu-item>
+            <el-menu-item index="temp-users">
+              <el-icon><Key /></el-icon>
+              <span>临时授权码</span>
             </el-menu-item>
             <el-menu-item index="permissions">
               <el-icon><Key /></el-icon>
@@ -69,6 +73,7 @@ import UsersManagement from '@/components/admin/UsersManagement.vue'
 import AccountsManagement from '@/components/admin/AccountsManagement.vue'
 import PendingAccounts from '@/components/admin/PendingAccounts.vue'
 import BatchImport from '@/components/admin/BatchImport.vue'
+import TempUsers from '@/components/admin/TempUsers.vue'
 import PermissionsManagement from '@/components/admin/PermissionsManagement.vue'
 import LogsManagement from '@/components/admin/LogsManagement.vue'
 import SystemSettings from '@/components/admin/SystemSettings.vue'
@@ -84,6 +89,7 @@ const components = {
   accounts: AccountsManagement,
   pending: PendingAccounts,
   'batch-import': BatchImport,
+  'temp-users': TempUsers,
   permissions: PermissionsManagement,
   logs: LogsManagement,
   settings: SystemSettings

@@ -7,42 +7,76 @@
         </div>
       </template>
       
-      <el-form
-        ref="loginFormRef"
-        :model="loginForm"
-        :rules="rules"
-        label-width="80px"
-        @submit.prevent="handleLogin"
-      >
-        <el-form-item label="用户名" prop="username">
-          <el-input
-            v-model="loginForm.username"
-            placeholder="请输入用户名"
-            clearable
-          />
-        </el-form-item>
-        
-        <el-form-item label="密码" prop="password">
-          <el-input
-            v-model="loginForm.password"
-            type="password"
-            placeholder="请输入密码"
-            show-password
-            @keyup.enter="handleLogin"
-          />
-        </el-form-item>
-        
-        <el-form-item>
-          <el-button
-            type="primary"
-            :loading="loading"
-            style="width: 100%"
-            @click="handleLogin"
+      <el-tabs v-model="loginType" class="login-tabs">
+        <el-tab-pane label="账号密码登录" name="password">
+          <el-form
+            ref="loginFormRef"
+            :model="loginForm"
+            :rules="passwordRules"
+            label-width="80px"
+            @submit.prevent="handleLogin"
           >
-            登录
-          </el-button>
-        </el-form-item>
-      </el-form>
+            <el-form-item label="用户名" prop="username">
+              <el-input
+                v-model="loginForm.username"
+                placeholder="请输入用户名"
+                clearable
+              />
+            </el-form-item>
+            
+            <el-form-item label="密码" prop="password">
+              <el-input
+                v-model="loginForm.password"
+                type="password"
+                placeholder="请输入密码"
+                show-password
+                @keyup.enter="handleLogin"
+              />
+            </el-form-item>
+            
+            <el-form-item>
+              <el-button
+                type="primary"
+                :loading="loading"
+                style="width: 100%"
+                @click="handleLogin"
+              >
+                登录
+              </el-button>
+            </el-form-item>
+          </el-form>
+        </el-tab-pane>
+        
+        <el-tab-pane label="授权码登录" name="code">
+          <el-form
+            ref="codeFormRef"
+            :model="codeForm"
+            :rules="codeRules"
+            label-width="80px"
+            @submit.prevent="handleCodeLogin"
+          >
+            <el-form-item label="授权码" prop="accessCode">
+              <el-input
+                v-model="codeForm.accessCode"
+                placeholder="请输入授权码"
+                clearable
+                @keyup.enter="handleCodeLogin"
+              />
+            </el-form-item>
+            
+            <el-form-item>
+              <el-button
+                type="primary"
+                :loading="loading"
+                style="width: 100%"
+                @click="handleCodeLogin"
+              >
+                登录
+              </el-button>
+            </el-form-item>
+          </el-form>
+        </el-tab-pane>
+      </el-tabs>
     </el-card>
   </div>
 </template>
@@ -58,7 +92,9 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const loginFormRef = ref(null)
+const codeFormRef = ref(null)
 const loading = ref(false)
+const loginType = ref('password')
 const systemSettings = ref({
   login_bg_type: 'solid',
   login_bg_color: '#409eff',
@@ -83,13 +119,17 @@ const loginForm = reactive({
   password: ''
 })
 
-const rules = {
-  username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' }
-  ],
-  password: [
-    { required: true, message: '请输入密码', trigger: 'blur' }
-  ]
+const codeForm = reactive({
+  accessCode: ''
+})
+
+const passwordRules = {
+  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+}
+
+const codeRules = {
+  accessCode: [{ required: true, message: '请输入授权码', trigger: 'blur' }]
 }
 
 const handleLogin = async () => {
@@ -103,18 +143,34 @@ const handleLogin = async () => {
       await authStore.login(loginForm.username, loginForm.password)
       ElMessage.success('登录成功')
       
-      if (authStore.isAdmin) {
+      if (authStore.user.role === 'admin') {
         router.push('/admin')
       } else {
-        router.push('/user')
+        router.push('/dashboard')
       }
     } catch (error) {
-      console.error('Login error:', error)
-      // 错误消息已由 axios 拦截器显示
-      // 如果没有显示，这里作为备用
-      if (!error.response && error.message) {
-        ElMessage.error('连接失败：' + error.message)
-      }
+      console.error('Login failed:', error)
+      ElMessage.error(error.response?.data?.error || '登录失败')
+    } finally {
+      loading.value = false
+    }
+  })
+}
+
+const handleCodeLogin = async () => {
+  if (!codeFormRef.value) return
+  
+  await codeFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    
+    loading.value = true
+    try {
+      await authStore.loginWithCode(codeForm.accessCode)
+      ElMessage.success('登录成功')
+      router.push('/dashboard')
+    } catch (error) {
+      console.error('Code login failed:', error)
+      ElMessage.error(error.response?.data?.error || '授权码无效或已过期')
     } finally {
       loading.value = false
     }

@@ -9,6 +9,12 @@ const routes = [
     meta: { requiresAuth: false }
   },
   {
+    path: '/dashboard',
+    name: 'Dashboard',
+    component: () => import('@/views/UserDashboard.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/user',
     name: 'UserDashboard',
     component: () => import('@/views/UserDashboard.vue'),
@@ -39,11 +45,15 @@ router.beforeEach((to, from, next) => {
   } else if (to.path === '/login' && authStore.isAuthenticated) {
     if (authStore.user?.role === 'admin') {
       next('/admin')
+    } else if (authStore.user?.role === 'temp_user') {
+      next('/dashboard')
     } else {
       next('/user')
     }
   } else if (to.meta.role === 'admin' && authStore.user?.role !== 'admin') {
     next('/user')
+  } else if (to.meta.role === 'user' && authStore.user?.role === 'temp_user') {
+    next('/dashboard')
   } else {
     next()
   }

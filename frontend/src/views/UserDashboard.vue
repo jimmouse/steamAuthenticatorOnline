@@ -368,9 +368,23 @@ const refreshConfirmations = async () => {
   try {
     const response = await axios.get(`/api/user/accounts/${currentAccount.value.id}/confirmations`)
     confirmations.value = response.data.confirmations.map(c => ({ ...c, processing: false }))
+    
+    if (confirmations.value.length === 0) {
+      ElMessage.info('当前没有待确认的交易')
+    }
   } catch (error) {
     console.error('Failed to fetch confirmations:', error)
-    ElMessage.error('获取确认列表失败')
+    const errorMsg = error.response?.data?.message || '获取确认列表失败'
+    const hint = error.response?.data?.hint
+    
+    ElMessage({
+      message: hint ? `${errorMsg}\n\n${hint}` : errorMsg,
+      type: 'warning',
+      duration: 5000,
+      showClose: true
+    })
+    
+    confirmationDialogVisible.value = false
   } finally {
     loadingConfirmations.value = false
   }

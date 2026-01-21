@@ -25,8 +25,22 @@ export const useAuthStore = defineStore('auth', {
         
         localStorage.setItem('token', this.token)
         localStorage.setItem('user', JSON.stringify(this.user))
+        axios.defaults.headers.common['Authorization'] = `Bearer ${this.token}`
         
         return response.data
+      } catch (error) {
+        throw error
+      }
+    },
+
+    async loginWithCode(accessCode) {
+      try {
+        const response = await axios.post('/api/auth/login-with-code', { accessCode })
+        this.token = response.data.token
+        this.user = response.data.user
+        localStorage.setItem('token', this.token)
+        localStorage.setItem('user', JSON.stringify(this.user))
+        axios.defaults.headers.common['Authorization'] = `Bearer ${this.token}`
       } catch (error) {
         throw error
       }
