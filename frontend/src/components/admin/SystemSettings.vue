@@ -166,7 +166,15 @@ const saveSettings = async () => {
     }
     
     await axios.put('/api/admin/settings', { settings: settingsToSave })
-    ElMessage.success('设置保存成功')
+    
+    // 立即应用主题
+    if (settings.value.theme_mode === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+    
+    ElMessage.success('设置保存成功，主题已应用')
   } catch (error) {
     console.error('Failed to save settings:', error)
     ElMessage.error('保存设置失败')

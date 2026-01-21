@@ -63,6 +63,7 @@ import { useAuthStore } from '@/stores/auth'
 import AccountsPreview from '@/components/admin/AccountsPreview.vue'
 import UsersManagement from '@/components/admin/UsersManagement.vue'
 import AccountsManagement from '@/components/admin/AccountsManagement.vue'
+import PendingAccounts from '@/components/admin/PendingAccounts.vue'
 import PermissionsManagement from '@/components/admin/PermissionsManagement.vue'
 import LogsManagement from '@/components/admin/LogsManagement.vue'
 import SystemSettings from '@/components/admin/SystemSettings.vue'
@@ -76,8 +77,10 @@ const components = {
   preview: AccountsPreview,
   users: UsersManagement,
   accounts: AccountsManagement,
+  pending: PendingAccounts,
   permissions: PermissionsManagement,
-  logs: LogsManagement
+  logs: LogsManagement,
+  settings: SystemSettings
 }
 
 const currentComponent = computed(() => components[activeMenu.value])

@@ -104,6 +104,76 @@
         </el-button>
       </div>
     </div>
+
+    <el-dialog
+      v-model="confirmationDialogVisible"
+      title="Steam 登录/交易确认"
+      width="700px"
+    >
+      <div v-if="loadingConfirmations" style="text-align: center; padding: 20px;">
+        <el-icon class="is-loading" :size="40"><Loading /></el-icon>
+        <p>正在获取待确认项...</p>
+      </div>
+
+      <div v-else-if="confirmations.length === 0" style="text-align: center; padding: 20px;">
+        <el-empty description="暂无待确认项" />
+      </div>
+
+      <div v-else>
+        <el-alert
+          title="提示"
+          type="info"
+          :closable="false"
+          style="margin-bottom: 15px;"
+        >
+          找到 {{ confirmations.length }} 个待确认项
+        </el-alert>
+
+        <el-table
+          :data="confirmations"
+          @selection-change="handleSelectionChange"
+          style="width: 100%"
+        >
+          <el-table-column type="selection" width="55" />
+          <el-table-column prop="typeDescription" label="类型" width="120" />
+          <el-table-column prop="description" label="描述" />
+          <el-table-column label="操作" width="180">
+            <template #default="{ row }">
+              <el-button
+                size="small"
+                type="success"
+                @click="acceptSingleConfirmation(row)"
+                :loading="row.processing"
+              >
+                接受
+              </el-button>
+              <el-button
+                size="small"
+                type="danger"
+                @click="denySingleConfirmation(row)"
+                :loading="row.processing"
+              >
+                拒绝
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <div style="margin-top: 15px; display: flex; gap: 10px;">
+          <el-button
+            type="success"
+            @click="acceptSelectedConfirmations"
+            :disabled="selectedConfirmations.length === 0"
+            :loading="batchProcessing"
+          >
+            批量接受 ({{ selectedConfirmations.length }})
+          </el-button>
+          <el-button @click="refreshConfirmations" :loading="loadingConfirmations">
+            刷新列表
+          </el-button>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -129,6 +199,13 @@ const systemSettings = ref({
   user_bg_color: '#f5f7fa',
   user_bg_gradient: null
 })
+
+const confirmationDialogVisible = ref(false)
+const loadingConfirmations = ref(false)
+const confirmations = ref([])
+const selectedConfirmations = ref([])
+const currentAccount = ref(null)
+const batchProcessing = ref(false)
 
 const userBgStyle = computed(() => {
   if (systemSettings.value.user_bg_type === 'gradient' && systemSettings.value.user_bg_gradient) {

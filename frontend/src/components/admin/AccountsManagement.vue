@@ -101,6 +101,15 @@
         <el-form-item label="密码" prop="password">
           <el-input v-model="formData.password" type="password" placeholder="Steam 登录密码" />
         </el-form-item>
+        <el-form-item label="邮箱地址">
+          <el-input v-model="formData.emailAddress" placeholder="可选，Steam账户绑定的邮箱" />
+        </el-form-item>
+        <el-form-item label="邮箱登录地址">
+          <el-input v-model="formData.emailLoginUrl" placeholder="可选，邮箱登录网址" />
+        </el-form-item>
+        <el-form-item label="邮箱密码">
+          <el-input v-model="formData.emailPassword" type="password" placeholder="可选，邮箱登录密码" />
+        </el-form-item>
         <el-form-item label="备注">
           <div class="editor-wrapper">
             <QuillEditor 
@@ -228,6 +237,9 @@ const showEditDialog = (account) => {
     description: account.account_name,
     password: '',
     notes: account.notes || '',
+    emailAddress: account.email_address || '',
+    emailLoginUrl: account.email_login_url || '',
+    emailPassword: '',
     sdaFile: null,
     is_active: account.is_active === 1,
     colorType: account.color_type || 'solid',
@@ -247,25 +259,23 @@ const handleSubmit = async () => {
     uploading.value = true
     try {
       if (dialogMode.value === 'create') {
-        const formDataToSend = new FormData()
-        formDataToSend.append('sdaFile', formData.value.sdaFile)
-        if (formData.value.description) {
-          formDataToSend.append('description', formData.value.description)
-        }
-        if (formData.value.password) {
-          formDataToSend.append('password', formData.value.password)
-        }
-        if (formData.value.notes) {
-          formDataToSend.append('notes', formData.value.notes)
-        }
-        formDataToSend.append('colorType', formData.value.colorType)
+        const submitData = new FormData()
+        submitData.append('file', formData.value.sdaFile)
+        submitData.append('description', formData.value.description)
+        submitData.append('password', formData.value.password)
+        submitData.append('notes', formData.value.notes)
+        if (formData.value.emailAddress) submitData.append('email_address', formData.value.emailAddress)
+        if (formData.value.emailLoginUrl) submitData.append('email_login_url', formData.value.emailLoginUrl)
+        if (formData.value.emailPassword) submitData.append('email_password', formData.value.emailPassword)
+        submitData.append('colorType', formData.value.colorType)
+        
         if (formData.value.colorType === 'solid') {
-          formDataToSend.append('colorValue', formData.value.colorValue)
+          submitData.append('colorValue', formData.value.colorValue)
         } else {
-          formDataToSend.append('colorGradient', `${formData.value.gradientStart},${formData.value.gradientEnd}`)
+          submitData.append('colorGradient', `${formData.value.gradientStart},${formData.value.gradientEnd}`)
         }
         
-        await axios.post('/api/admin/steam-accounts', formDataToSend, {
+        await axios.post('/api/admin/steam-accounts', submitData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
