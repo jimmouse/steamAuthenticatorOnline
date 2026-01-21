@@ -967,4 +967,50 @@ router.put('/settings', (req, res) => {
   });
 });
 
+// 更新Steam账户的Session数据
+router.post('/steam-accounts/:id/session', async (req, res) => {
+  const { id } = req.params;
+  const { sessionData, cookieString } = req.body;
+  const { updateAccountSession, parseSessionFromCookie, validateSession } = require('../utils/steamLogin');
+
+  try {
+    let session;
+
+    // 如果提供了Cookie字符串，解析它
+    if (cookieString) {
+      session = parseSessionFromCookie(cookieString);
+      if (!session.SessionID || !session.SteamID) {
+        return res.status(400).json({ error: 'Invalid cookie string' });
+      }
+    } else if (sessionData) {
+      session = sessionData;
+    } else {
+      return res.status(400).json({ error: 'Session data or cookie string required' });
+    }
+
+    // 验证Session是否有效
+    const isValid = await validateSession(session);
+    if (!isValid) {
+      return res.status(400).json({ 
+        error: 'Invalid session', 
+        message: 'Session验证失败，请确保Cookie是最新的' 
+      });
+    }
+
+    // 更新数据库
+    const updatedSession = await updateAccountSession(db, id, session);
+
+    res.json({ 
+      message: 'Session updated successfully',
+      session: {
+        SteamID: updatedSession.SteamID,
+        UpdatedAt: updatedSession.UpdatedAt
+      }
+    });
+  } catch (error) {
+    console.error('Failed to update session:', error);
+    res.status(500).json({ error: 'Failed to update session', message: error.message });
+  }
+});
+
 module.exports = router;

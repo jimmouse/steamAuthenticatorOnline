@@ -15,6 +15,8 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
 const adminRoutes = require('./routes/admin');
 const externalRoutes = require('./routes/external');
+const tempUsersRoutes = require('./routes/tempUsers');
+const healthRoutes = require('./routes/health');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -53,8 +55,10 @@ const externalLimiter = rateLimit({
 
 app.use('/api/external', externalLimiter);
 
+app.use('/', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/admin/temp-users', tempUsersRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/external', externalRoutes);
 

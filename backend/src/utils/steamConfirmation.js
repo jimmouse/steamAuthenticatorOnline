@@ -32,7 +32,12 @@ function generateDeviceID(steamId) {
 }
 
 // 获取待确认项列表
-async function getConfirmations(steamId, identitySecret, deviceId) {
+async function getConfirmations(steamId, identitySecret, deviceId, sessionData) {
+  // 检查是否有session数据
+  if (!sessionData || !sessionData.SessionID || !sessionData.SteamID) {
+    throw new Error('需要有效的Steam会话才能获取确认。请在Steam官方应用中查看确认。');
+  }
+
   const time = Math.floor(Date.now() / 1000);
   const confirmationKey = generateConfirmationKey(identitySecret, time, 'conf');
   
@@ -42,27 +47,34 @@ async function getConfirmations(steamId, identitySecret, deviceId) {
   });
   
   try {
-    const response = await axios.get('https://steamcommunity.com/mobileconf/conf', {
+    const response = await axios.get('https://steamcommunity.com/mobileconf/getlist', {
       params: {
         p: deviceId,
-        a: steamId,
+        a: sessionData.SteamID,
         k: confirmationKey,
         t: time,
-        m: 'android',
+        m: 'react',
         tag: 'conf'
       },
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Linux; U; Android 4.1.1; en-us; Google Nexus 4 - 4.1.1 - API 16 - 768x1280 Build/JRO03S) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30'
+        'User-Agent': 'Mozilla/5.0 (Linux; U; Android 4.1.1; en-us; Google Nexus 4 - 4.1.1 - API 16 - 768x1280 Build/JRO03S) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30',
+        'Cookie': `sessionid=${sessionData.SessionID}; steamLoginSecure=${sessionData.SteamLoginSecure || ''}`
       },
       httpsAgent
     });
     
-    // 解析HTML获取确认项
-    const confirmations = parseConfirmations(response.data);
-    return confirmations;
+    // Steam新API返回JSON格式
+    if (response.data && response.data.success) {
+      return response.data.conf || [];
+    } else {
+      throw new Error('Steam返回错误：' + (response.data.message || '未知错误'));
+    }
   } catch (error) {
     console.error('Failed to get confirmations:', error.message);
-    throw error;
+    if (error.response && error.response.status === 404) {
+      throw new Error('Steam确认API不可用。该账户可能没有待确认的交易，或需要重新登录Steam。');
+    }
+    throw new Error('获取确认失败：' + error.message);
   }
 }
 
@@ -127,6 +139,11 @@ async function denyConfirmation(steamId, identitySecret, deviceId, confId, confK
   const time = Math.floor(Date.now() / 1000);
   const confirmationKey = generateConfirmationKey(identitySecret, time, 'cancel');
   
+  const https = require('https');
+  const httpsAgent = new https.Agent({
+    rejectUnauthorized: false
+  });
+  
   try {
     const response = await axios.get('https://steamcommunity.com/mobileconf/ajaxop', {
       params: {
@@ -142,7 +159,8 @@ async function denyConfirmation(steamId, identitySecret, deviceId, confId, confK
       },
       headers: {
         'User-Agent': 'Mozilla/5.0 (Linux; U; Android 4.1.1; en-us; Google Nexus 4 - 4.1.1 - API 16 - 768x1280 Build/JRO03S) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30'
-      }
+      },
+      httpsAgent
     });
     
     return response.data.success === true;

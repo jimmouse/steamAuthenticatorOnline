@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../config/database');
 const { getClientIp } = require('../middleware/auth');
+const crypto = require('crypto');
 
 const router = express.Router();
 
@@ -74,6 +75,86 @@ router.post('/login', async (req, res) => {
       }
     });
   });
+});
+
+// 授权码登录
+router.post('/login-with-code', async (req, res) => {
+  const { accessCode } = req.body;
+  const clientIp = getClientIp(req);
+
+  console.log(`[ACCESS_CODE_LOGIN] 尝试使用授权码登录, IP: ${clientIp}`);
+
+  if (!accessCode) {
+    return res.status(400).json({ error: 'Access code required' });
+  }
+
+  db.get(
+    `SELECT tu.*, sa.id as steam_account_id, sa.account_name, sa.username as steam_username
+     FROM temp_users tu
+     INNER JOIN steam_accounts sa ON tu.steam_account_id = sa.id
+     WHERE tu.access_code = ? AND tu.is_active = 1`,
+    [accessCode],
+    async (err, tempUser) => {
+      if (err) {
+        console.error('[ACCESS_CODE_LOGIN] 数据库错误:', err);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+
+      if (!tempUser) {
+        console.log(`[ACCESS_CODE_LOGIN] 无效的授权码`);
+        return res.status(401).json({ error: 'Invalid access code' });
+      }
+
+      // 检查是否过期
+      if (tempUser.expires_at && new Date(tempUser.expires_at) < new Date()) {
+        console.log(`[ACCESS_CODE_LOGIN] 授权码已过期`);
+        return res.status(401).json({ error: 'Access code expired' });
+      }
+
+      // 检查使用次数
+      if (tempUser.max_uses && tempUser.current_uses >= tempUser.max_uses) {
+        console.log(`[ACCESS_CODE_LOGIN] 授权码使用次数已达上限`);
+        return res.status(401).json({ error: 'Access code usage limit reached' });
+      }
+
+      console.log(`[ACCESS_CODE_LOGIN] 授权码验证成功，账户: ${tempUser.account_name}`);
+
+      // 更新使用次数和最后使用时间
+      db.run(
+        'UPDATE temp_users SET current_uses = current_uses + 1, last_used_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [tempUser.id]
+      );
+
+      if (!process.env.JWT_SECRET) {
+        console.error('JWT_SECRET is not set');
+        return res.status(500).json({ error: 'Server configuration error' });
+      }
+
+      // 生成临时用户token
+      const token = jwt.sign(
+        { 
+          id: tempUser.steam_account_id,  
+          username: `临时用户_${tempUser.access_code.substring(0, 8)}`,
+          role: 'temp_user',
+          steamAccountId: tempUser.steam_account_id,
+          tempUserId: tempUser.id
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      res.json({
+        token,
+        user: {
+          id: `temp_${tempUser.id}`,
+          username: `临时用户_${tempUser.access_code.substring(0, 8)}`,
+          role: 'temp_user',
+          steamAccountId: tempUser.steam_account_id,
+          accountName: tempUser.account_name
+        }
+      });
+    }
+  );
 });
 
 router.post('/logout', (req, res) => {

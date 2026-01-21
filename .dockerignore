@@ -1,0 +1,11 @@
+node_modules
+.git
+.gitignore
+*.md
+.vscode
+.env
+backend/node_modules
+backend/uploads/*
+backend/data/*
+frontend/node_modules
+frontend/dist
