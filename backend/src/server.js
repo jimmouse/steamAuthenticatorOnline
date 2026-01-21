@@ -27,17 +27,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: 'Too many requests from this IP',
-  validate: {
-    trustProxy: process.env.TRUST_PROXY === 'true'
-  }
-});
-
-app.use('/api/', limiter);
-
+// 只对登录接口进行严格限制
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -50,6 +40,18 @@ const authLimiter = rateLimit({
 });
 
 app.use('/api/auth/login', authLimiter);
+
+// 对外部API进行限制
+const externalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: 'Too many requests from this IP',
+  validate: {
+    trustProxy: process.env.TRUST_PROXY === 'true'
+  }
+});
+
+app.use('/api/external', externalLimiter);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);

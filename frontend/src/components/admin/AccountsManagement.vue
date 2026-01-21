@@ -38,12 +38,17 @@
             <span class="value">{{ account.password ? '••••••••' : '未设置' }}</span>
           </div>
           <div v-if="account.notes" class="detail-item notes-item">
-            <span class="label">备注：</span>
-            <span class="value notes-text">{{ account.notes }}</span>
+            <div class="notes-header" @click="toggleNotes(account.id)">
+              <span class="label">📝 备注</span>
+              <el-icon class="expand-icon" :class="{ expanded: expandedNotes[account.id] }">
+                <ArrowDown />
+              </el-icon>
+            </div>
+            <div v-show="expandedNotes[account.id]" class="notes-content" v-html="account.notes"></div>
           </div>
           <div class="detail-item">
             <span class="label">创建时间：</span>
-            <span class="value">{{ new Date(account.created_at).toLocaleString('zh-CN') }}</span>
+            <span class="value">{{ new Date(account.created_at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) }}</span>
           </div>
         </div>
         
@@ -96,6 +101,17 @@
         <el-form-item label="密码" prop="password">
           <el-input v-model="formData.password" type="password" placeholder="Steam 登录密码" />
         </el-form-item>
+        <el-form-item label="备注">
+          <div class="editor-wrapper">
+            <QuillEditor 
+              v-model:content="formData.notes"
+              contentType="html"
+              theme="snow"
+              placeholder="可选，添加账户相关备注信息（支持富文本格式）"
+              :toolbar="editorToolbar"
+            />
+          </div>
+        </el-form-item>
         <el-form-item label="卡片颜色" prop="colorType">
           <el-radio-group v-model="formData.colorType">
             <el-radio value="solid">单色</el-radio>
@@ -127,10 +143,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, ArrowDown } from '@element-plus/icons-vue'
 import axios from '@/utils/axios'
+import { QuillEditor } from '@vueup/vue-quill'
+import '@vueup/vue-quill/dist/vue-quill.snow.css'
 
 const accounts = ref([])
 const dialogVisible = ref(false)
@@ -138,6 +156,16 @@ const dialogMode = ref('create')
 const uploading = ref(false)
 const formRef = ref(null)
 const uploadRef = ref(null)
+const expandedNotes = reactive({})
+
+const editorToolbar = [
+  ['bold', 'italic', 'underline', 'strike'],
+  ['blockquote', 'code-block'],
+  [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+  [{ 'header': [1, 2, 3, false] }],
+  ['link'],
+  ['clean']
+]
 const formData = ref({
   id: null,
   description: '',
@@ -181,6 +209,7 @@ const showCreateDialog = () => {
     id: null,
     description: '',
     password: '',
+    notes: '',
     sdaFile: null,
     is_active: true,
     colorType: 'solid',
@@ -198,6 +227,7 @@ const showEditDialog = (account) => {
     id: account.id,
     description: account.account_name,
     password: '',
+    notes: account.notes || '',
     sdaFile: null,
     is_active: account.is_active === 1,
     colorType: account.color_type || 'solid',
@@ -224,6 +254,9 @@ const handleSubmit = async () => {
         }
         if (formData.value.password) {
           formDataToSend.append('password', formData.value.password)
+        }
+        if (formData.value.notes) {
+          formDataToSend.append('notes', formData.value.notes)
         }
         formDataToSend.append('colorType', formData.value.colorType)
         if (formData.value.colorType === 'solid') {
@@ -289,6 +322,10 @@ const getCardBannerStyle = (account) => {
       background: account.color_value || '#409eff'
     }
   }
+}
+
+const toggleNotes = (accountId) => {
+  expandedNotes[accountId] = !expandedNotes[accountId]
 }
 
 onMounted(() => {
@@ -372,9 +409,101 @@ onMounted(() => {
   font-family: monospace;
 }
 
+.notes-item {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px dashed #ebeef5;
+}
+
+.notes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  cursor: pointer;
+  user-select: none;
+  padding: 5px 0;
+}
+
+.notes-header:hover {
+  color: #409eff;
+}
+
+.expand-icon {
+  transition: transform 0.3s;
+}
+
+.expand-icon.expanded {
+  transform: rotate(180deg);
+}
+
+.notes-content {
+  width: 100%;
+  padding: 12px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  font-family: 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+  color: #606266;
+  line-height: 1.6;
+}
+
+.notes-content :deep(p) {
+  margin: 0.5em 0;
+}
+
+.notes-content :deep(ul), 
+.notes-content :deep(ol) {
+  padding-left: 20px;
+}
+
+.notes-content :deep(code) {
+  background-color: #e7e7e7;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: Consolas, monospace;
+}
+
+.notes-content :deep(pre) {
+  background-color: #2d2d2d;
+  color: #f8f8f2;
+  padding: 10px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.notes-content :deep(blockquote) {
+  border-left: 4px solid #409eff;
+  padding-left: 12px;
+  margin: 10px 0;
+  color: #666;
+}
+
 .card-actions {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
+}
+
+.editor-wrapper {
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+}
+
+.editor-wrapper :deep(.ql-container) {
+  height: 150px;
+  font-family: 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+}
+
+.editor-wrapper :deep(.ql-editor) {
+  min-height: 150px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.editor-wrapper :deep(.ql-toolbar) {
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
 }
 </style>

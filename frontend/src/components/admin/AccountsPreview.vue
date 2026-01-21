@@ -71,6 +71,16 @@
             </div>
           </div>
           
+          <div v-if="selectedAccount.notes" class="info-item notes-item">
+            <div class="notes-header" @click="toggleNotesPreview">
+              <label>📝 备注</label>
+              <el-icon class="expand-icon" :class="{ expanded: notesExpanded }">
+                <ArrowDown />
+              </el-icon>
+            </div>
+            <div v-show="notesExpanded" class="notes-content" v-html="selectedAccount.notes"></div>
+          </div>
+          
           <div class="info-item auth-code">
             <label>验证码：</label>
             <div class="code-container">
@@ -101,7 +111,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Avatar, DocumentCopy, View, Hide, Loading } from '@element-plus/icons-vue'
+import { Avatar, DocumentCopy, View, Hide, Loading, ArrowDown } from '@element-plus/icons-vue'
 import axios from '@/utils/axios'
 
 const allAccounts = ref([])
@@ -109,14 +119,13 @@ const selectedAccountId = ref(null)
 const selectedAccount = ref(null)
 const loading = ref(false)
 const showPassword = ref(false)
+const notesExpanded = ref(false)
 let refreshInterval = null
 
 const fetchAllAccounts = async () => {
   try {
     const response = await axios.get('/api/admin/steam-accounts')
-    console.log('Fetched accounts:', response.data)
-    allAccounts.value = response.data.accounts
-    console.log('All accounts:', allAccounts.value)
+    allAccounts.value = response.data.accounts || []
   } catch (error) {
     console.error('Failed to fetch accounts:', error)
     ElMessage.error('获取账户列表失败')
@@ -171,6 +180,7 @@ const updateTimeRemaining = () => {
 
 const handleAccountChange = (accountId) => {
   showPassword.value = false
+  notesExpanded.value = false
   if (accountId) {
     fetchAccountDetails(accountId)
   } else {
@@ -180,6 +190,10 @@ const handleAccountChange = (accountId) => {
 
 const togglePassword = () => {
   showPassword.value = !showPassword.value
+}
+
+const toggleNotesPreview = () => {
+  notesExpanded.value = !notesExpanded.value
 }
 
 const copyToClipboard = async (text, label) => {
@@ -195,6 +209,19 @@ const getProgressColor = (timeRemaining) => {
   if (timeRemaining > 20) return '#67c23a'
   if (timeRemaining > 10) return '#e6a23c'
   return '#f56c6c'
+}
+
+const getCardBannerStyle = (account) => {
+  if (account.colorType === 'gradient' && account.colorGradient) {
+    const colors = account.colorGradient.split(',')
+    return {
+      background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 100%)`
+    }
+  } else {
+    return {
+      background: account.colorValue || '#409eff'
+    }
+  }
 }
 
 onMounted(() => {
@@ -345,5 +372,76 @@ onUnmounted(() => {
   text-align: center;
   font-size: 12px;
   color: #909399;
+}
+
+.notes-item {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px dashed #ebeef5;
+}
+
+.notes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  cursor: pointer;
+  user-select: none;
+  padding: 5px 0;
+}
+
+.notes-header:hover {
+  color: #409eff;
+}
+
+.expand-icon {
+  transition: transform 0.3s;
+}
+
+.expand-icon.expanded {
+  transform: rotate(180deg);
+}
+
+.notes-content {
+  width: 100%;
+  padding: 12px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  font-family: 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+  color: #606266;
+  line-height: 1.6;
+}
+
+.notes-content :deep(p) {
+  margin: 0.5em 0;
+}
+
+.notes-content :deep(ul), 
+.notes-content :deep(ol) {
+  padding-left: 20px;
+}
+
+.notes-content :deep(code) {
+  background-color: #e7e7e7;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: Consolas, monospace;
+}
+
+.notes-content :deep(pre) {
+  background-color: #2d2d2d;
+  color: #f8f8f2;
+  padding: 10px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.notes-content :deep(blockquote) {
+  border-left: 4px solid #409eff;
+  padding-left: 12px;
+  margin: 10px 0;
+  color: #666;
 }
 </style>

@@ -64,10 +64,13 @@
             </div>
             
             <div v-if="account.notes" class="info-item notes-item">
-              <label>📝 备注：</label>
-              <div class="notes-content">
-                <span class="notes-text">{{ account.notes }}</span>
+              <div class="notes-header" @click="toggleNotes(account.id)">
+                <label>📝 备注</label>
+                <el-icon class="expand-icon" :class="{ expanded: expandedNotes[account.id] }">
+                  <ArrowDown />
+                </el-icon>
               </div>
+              <div v-show="expandedNotes[account.id]" class="notes-content" v-html="account.notes"></div>
             </div>
             
             <div class="info-item auth-code">
@@ -108,7 +111,7 @@
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Avatar, DocumentCopy, View, Hide, Loading } from '@element-plus/icons-vue'
+import { Avatar, DocumentCopy, View, Hide, Loading, ArrowDown } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import axios from '@/utils/axios'
 
@@ -118,6 +121,7 @@ const authStore = useAuthStore()
 const accounts = ref([])
 const loading = ref(true)
 const showPassword = reactive({})
+const expandedNotes = reactive({})
 let refreshInterval = null
 
 const fetchAccounts = async () => {
@@ -156,6 +160,10 @@ const updateTimeRemaining = () => {
 
 const togglePassword = (accountId) => {
   showPassword[accountId] = !showPassword[accountId]
+}
+
+const toggleNotes = (accountId) => {
+  expandedNotes[accountId] = !expandedNotes[accountId]
 }
 
 const copyToClipboard = async (text, label) => {
@@ -358,25 +366,72 @@ onUnmounted(() => {
 .notes-item {
   flex-direction: column;
   align-items: flex-start;
-  gap: 5px;
+  gap: 8px;
   padding-top: 10px;
   border-top: 1px dashed #ebeef5;
 }
 
-.notes-content {
+.notes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   width: 100%;
-  padding: 10px;
-  background-color: #f5f7fa;
-  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  padding: 5px 0;
 }
 
-.notes-text {
+.notes-header:hover {
+  color: #409eff;
+}
+
+.expand-icon {
+  transition: transform 0.3s;
+}
+
+.expand-icon.expanded {
+  transform: rotate(180deg);
+}
+
+.notes-content {
+  width: 100%;
+  padding: 12px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
   font-family: 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
   color: #606266;
   line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-size: 14px;
+}
+
+.notes-content :deep(p) {
+  margin: 0.5em 0;
+}
+
+.notes-content :deep(ul), 
+.notes-content :deep(ol) {
+  padding-left: 20px;
+}
+
+.notes-content :deep(code) {
+  background-color: #e7e7e7;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: Consolas, monospace;
+}
+
+.notes-content :deep(pre) {
+  background-color: #2d2d2d;
+  color: #f8f8f2;
+  padding: 10px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.notes-content :deep(blockquote) {
+  border-left: 4px solid #409eff;
+  padding-left: 12px;
+  margin: 10px 0;
+  color: #666;
 }
 
 .logout-container {

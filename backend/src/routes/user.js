@@ -43,7 +43,8 @@ router.get('/accounts', (req, res) => {
       timeRemaining: getTimeRemaining(),
       colorType: account.color_type,
       colorValue: account.color_value,
-      colorGradient: account.color_gradient
+      colorGradient: account.color_gradient,
+      notes: account.notes
     }));
 
     res.json({ accounts: accountsWithCode });
