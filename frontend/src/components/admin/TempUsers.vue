@@ -35,14 +35,39 @@
         </template>
       </el-table-column>
       <el-table-column prop="created_by_username" label="创建者" width="120" />
-      <el-table-column label="操作" width="250" fixed="right">
+      <el-table-column label="操作" width="320" fixed="right">
         <template #default="{ row }">
           <el-button size="small" @click="showEditDialog(row)">编辑</el-button>
+          <el-button size="small" type="info" @click="showLogsDialog(row)">查看记录</el-button>
           <el-button size="small" type="warning" @click="resetUses(row.id)">重置次数</el-button>
           <el-button size="small" type="danger" @click="deleteUser(row.id)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
+
+    <!-- 登录记录对话框 -->
+    <el-dialog v-model="logsDialogVisible" title="登录记录" width="800px">
+      <el-table :data="loginLogs" stripe style="width: 100%" v-loading="logsLoading">
+        <el-table-column prop="username" label="用户名" width="150" />
+        <el-table-column prop="ip_address" label="IP地址" width="150" />
+        <el-table-column prop="user_agent" label="User Agent" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="created_at" label="登录时间" width="180">
+          <template #default="{ row }">
+            {{ new Date(row.created_at).toLocaleString('zh-CN') }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 'success' ? 'success' : 'danger'">
+              {{ row.status === 'success' ? '成功' : '失败' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <el-button @click="logsDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog v-model="dialogVisible" :title="dialogMode === 'create' ? '创建授权码' : '编辑授权码'" width="500px">
       <el-form :model="formData" label-width="100px">
@@ -83,6 +108,9 @@ const steamAccounts = ref([])
 const dialogVisible = ref(false)
 const dialogMode = ref('create')
 const submitting = ref(false)
+const logsDialogVisible = ref(false)
+const loginLogs = ref([])
+const logsLoading = ref(false)
 const formData = ref({
   steamAccountId: null,
   expiresAt: null,
@@ -197,9 +225,45 @@ const deleteUser = async (id) => {
   }
 }
 
+const showLogsDialog = async (row) => {
+  logsDialogVisible.value = true
+  logsLoading.value = true
+  loginLogs.value = []
+  
+  try {
+    const response = await axios.get(`/api/admin/temp-users/${row.access_code}/logs`)
+    loginLogs.value = response.data.logs
+  } catch (error) {
+    console.error('Failed to fetch logs:', error)
+    ElMessage.error('获取登录记录失败')
+  } finally {
+    logsLoading.value = false
+  }
+}
+
+// 自动刷新功能：300秒后刷新列表
+let autoRefreshTimer = null
+const startAutoRefresh = () => {
+  if (autoRefreshTimer) {
+    clearTimeout(autoRefreshTimer)
+  }
+  autoRefreshTimer = setTimeout(() => {
+    fetchTempUsers()
+    startAutoRefresh()
+  }, 300000) // 300秒
+}
+
 onMounted(() => {
   fetchTempUsers()
   fetchSteamAccounts()
+  startAutoRefresh()
+})
+
+import { onBeforeUnmount } from 'vue'
+onBeforeUnmount(() => {
+  if (autoRefreshTimer) {
+    clearTimeout(autoRefreshTimer)
+  }
 })
 </script>
 

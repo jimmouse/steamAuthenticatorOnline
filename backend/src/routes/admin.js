@@ -1139,6 +1139,26 @@ router.post('/steam-accounts/:id/session', async (req, res) => {
   }
 });
 
+// 查询临时用户的登录记录
+router.get('/temp-users/:code/logs', (req, res) => {
+  const { code } = req.params;
+  
+  db.all(
+    `SELECT ll.* FROM login_logs ll
+     INNER JOIN temp_users tu ON ll.username = tu.username
+     WHERE tu.access_code = ?
+     ORDER BY ll.created_at DESC`,
+    [code],
+    (err, logs) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+      res.json({ logs });
+    }
+  );
+});
+
 // 清理登录日志
 router.delete('/logs', (req, res) => {
   const { days } = req.body;

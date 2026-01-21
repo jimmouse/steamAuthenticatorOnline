@@ -149,12 +149,6 @@
           </div>
         </el-card>
       </div>
-      
-      <div class="logout-container">
-        <el-button type="danger" @click="handleLogout">
-          退出登录
-        </el-button>
-      </div>
     </div>
 
     <el-dialog
@@ -628,7 +622,7 @@ onUnmounted(() => {
 
 .info-item label {
   font-weight: 500;
-  color: #606266;
+  color: var(--el-text-color-regular);
   font-size: 14px;
 }
 
@@ -716,10 +710,10 @@ onUnmounted(() => {
 .notes-content {
   width: 100%;
   padding: 12px;
-  background-color: #f5f7fa;
+  background-color: var(--el-fill-color-light);
   border-radius: 4px;
   font-family: 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
-  color: #606266;
+  color: var(--el-text-color-regular);
   line-height: 1.6;
 }
 

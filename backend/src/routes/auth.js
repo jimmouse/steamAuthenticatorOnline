@@ -27,8 +27,8 @@ router.post('/login', async (req, res) => {
     clientIp = clientIp.substring(7);
   }
   
-  // 如果是Docker网关IP，说明是本地访问，显示为localhost
-  if (clientIp && (clientIp.startsWith('172.') || clientIp.startsWith('192.168.'))) {
+  // 只将Docker网关IP标记为本地访问（172.17-32段是Docker默认网段）
+  if (clientIp && /^172\.(1[7-9]|2[0-9]|3[0-2])\./.test(clientIp)) {
     clientIp = '127.0.0.1 (本地访问)';
   }
 

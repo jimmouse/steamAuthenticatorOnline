@@ -85,8 +85,8 @@ function getClientIp(req) {
     remoteAddr = remoteAddr.substring(7);
   }
 
-  // 如果是Docker网关IP或内网IP，说明是本地访问
-  if (remoteAddr && (remoteAddr.startsWith('172.') || remoteAddr.startsWith('192.168.') || remoteAddr.startsWith('10.'))) {
+  // 只将Docker网关IP标记为本地访问（172.17-32段是Docker默认网段）
+  if (remoteAddr && /^172\.(1[7-9]|2[0-9]|3[0-2])\./.test(remoteAddr)) {
     return '127.0.0.1';
   }
 
