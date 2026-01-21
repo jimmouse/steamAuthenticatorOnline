@@ -36,6 +36,30 @@ Steam取号器 - 支持多用户管理 Steam 账户和二步验证码
 
 ## 快速开始
 
+### 方式一：Docker 部署（推荐）
+
+使用 Docker Compose 一键部署，详见 [Docker 部署指南](./DOCKER_DEPLOYMENT.md)。
+
+```bash
+# 1. 配置环境变量
+cd backend
+cp .env.example .env
+# 编辑 .env 文件，设置 JWT_SECRET
+
+# 2. 构建并启动
+cd ..
+docker-compose up -d --build
+
+# 3. 初始化数据库
+docker-compose exec backend node src/scripts/initDatabase.js
+
+# 4. 访问系统
+# 前端: http://localhost
+# 后端 API: http://localhost/api
+```
+
+### 方式二：传统部署
+
 ### 1. 安装依赖
 
 #### 后端

@@ -15,7 +15,6 @@ frontend/dist/
 frontend/.vite/
 
 # 数据库
-backend/data/database.sqlite
 backend/data/uploads/*
 
 # 日志

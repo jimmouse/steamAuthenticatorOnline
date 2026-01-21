@@ -21,7 +21,13 @@ RUN mkdir -p /app/data /app/uploads
 RUN echo '#!/bin/sh' > /app/start.sh && \
     echo 'echo "Initializing database..."' >> /app/start.sh && \
     echo 'node src/scripts/initDatabase.js' >> /app/start.sh && \
+    echo 'echo "Running database migrations..."' >> /app/start.sh && \
+    echo 'node src/scripts/addColorColumn.js' >> /app/start.sh && \
+    echo 'node src/scripts/addNotesColumn.js' >> /app/start.sh && \
+    echo 'node src/scripts/addEmailFields.js' >> /app/start.sh && \
+    echo 'node src/scripts/addLocationFields.js' >> /app/start.sh && \
     echo 'node src/scripts/createSettingsTable.js' >> /app/start.sh && \
+    echo 'node src/scripts/createPendingAccountsTable.js' >> /app/start.sh && \
     echo 'node src/scripts/addTempUsers.js' >> /app/start.sh && \
     echo 'echo "Starting server..."' >> /app/start.sh && \
     echo 'node src/server.js' >> /app/start.sh && \
