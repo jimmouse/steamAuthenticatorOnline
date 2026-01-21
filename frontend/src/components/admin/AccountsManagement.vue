@@ -37,11 +37,7 @@
             <span class="label">密码：</span>
             <span class="value">{{ account.password ? '••••••••' : '未设置' }}</span>
           </div>
-          <div v-if="account.notes" class="detail-item notes-item">
-            <div class="notes-header" @click="toggleNotes(account.id)">
-              <span class="label">📝 备注</span>
-              <el-icon class="expand-icon" :class="{ expanded: expandedNotes[account.id] }">
-                <ArrowDown />
+          <div v-if="account.w/
               </el-icon>
             </div>
             <div v-show="expandedNotes[account.id]" class="notes-content" v-html="account.notes"></div>
@@ -113,6 +109,26 @@
         <el-form-item label="邮箱密码">
           <el-input v-model="formData.emailPassword" type="password" placeholder="可选，邮箱登录密码" />
         </el-form-item>
+        <el-form-item label="国家/地区">
+          <el-select v-model="formData.country" placeholder="请选择国家/地区" clearable @change="handleCountryChange">
+            <el-option v-for="country in countries" :key="country" :label="country" :value="country" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="formData.country === '中国'" label="省/自治区/直辖市">
+          <el-select v-model="formData.province" placeholder="请选择省份" clearable @change="handleProvinceChange">
+            <el-option v-for="province in provinces" :key="province" :label="province" :value="province" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="formData.country === '中国' && formData.province" label="市/区">
+          <el-select v-model="formData.city" placeholder="请选择城市" clearable @change="handleCityChange">
+            <el-option v-for="city in cities" :key="city" :label="city" :value="city" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="formData.country === '中国' && formData.city" label="区/县">
+          <el-select v-model="formData.district" placeholder="请选择区县" clearable>
+            <el-option v-for="district in districts" :key="district" :label="district" :value="district" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="备注">
           <div class="editor-wrapper">
             <QuillEditor 
@@ -162,13 +178,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import SessionManager from './SessionManager.vue'
 import { ElMessage } from 'element-plus'
 import { Plus, ArrowDown } from '@element-plus/icons-vue'
 import axios from '@/utils/axios'
 import { QuillEditor } from '@vueup/vue-quill'
 import '@vueup/vue-quill/dist/vue-quill.snow.css'
+import { countries, getProvinces, getCities, getDistricts } from '@/utils/chinaRegions'
 
 const accounts = ref([])
 const dialogVisible = ref(false)
@@ -197,8 +214,31 @@ const formData = ref({
   colorType: 'solid',
   colorValue: '#409eff',
   gradientStart: '#667eea',
-  gradientEnd: '#764ba2'
+  gradientEnd: '#764ba2',
+  country: null,
+  province: null,
+  city: null,
+  district: null
 })
+
+const provinces = computed(() => formData.value.country === '中国' ? getProvinces() : [])
+const cities = computed(() => formData.value.province ? getCities(formData.value.province) : [])
+const districts = computed(() => formData.value.city ? getDistricts(formData.value.province, formData.value.city) : [])
+
+const handleCountryChange = () => {
+  formData.value.province = null
+  formData.value.city = null
+  formData.value.district = null
+}
+
+const handleProvinceChange = () => {
+  formData.value.city = null
+  formData.value.district = null
+}
+
+const handleCityChange = () => {
+  formData.value.district = null
+}
 
 const rules = {
   sdaFile: [
@@ -237,7 +277,11 @@ const showCreateDialog = () => {
     colorType: 'solid',
     colorValue: '#409eff',
     gradientStart: '#667eea',
-    gradientEnd: '#764ba2'
+    gradientEnd: '#764ba2',
+    country: null,
+    province: null,
+    city: null,
+    district: null
   }
   dialogVisible.value = true
 }
@@ -247,6 +291,10 @@ const showEditDialog = (account) => {
   const gradientColors = account.color_gradient ? account.color_gradient.split(',') : ['#667eea', '#764ba2']
   formData.value = {
     id: account.id,
+    country: account.country || null,
+    province: account.province || null,
+    city: account.city || null,
+    district: account.district || null,
     description: account.account_name,
     password: '',
     notes: account.notes || '',
@@ -283,7 +331,11 @@ const handleSubmit = async () => {
         submitData.append('colorType', formData.value.colorType)
         
         if (formData.value.colorType === 'solid') {
-          submitData.append('colorValue', formData.value.colorValue)
+          submitData.append('colorValue', formData.value.colorValue)ord)
+        if (formData.value.country) submitData.append('country', formData.value.country)
+        if (formData.value.province) submitData.append('province', formData.value.province)
+        if (formData.value.city) submitData.append('city', formData.value.city)
+        if (formData.value.district) submitData.append('district', fmData.value.istrict
         } else {
           submitData.append('colorGradient', `${formData.value.gradientStart},${formData.value.gradientEnd}`)
         }
@@ -302,7 +354,11 @@ const handleSubmit = async () => {
           notes: formData.value.notes,
           email_address: formData.value.emailAddress || null,
           email_login_url: formData.value.emailLoginUrl || null,
-          email_password: formData.value.emailPassword || null
+          email_password: formData.value.emailPassword || null,
+          country: formData.value.country || null,
+          province: formData.value.province || null,
+          city: formData.value.city || null,
+          district: formData.value.district || null
         }
         if (formData.value.password) {
           data.password = formData.value.password
@@ -362,6 +418,15 @@ const showSessionDialog = (account) => {
 const handleSessionUpdated = () => {
   ElMessage.success('Session更新成功！现在可以查看确认了')
   sessionDialogVisible.value = false
+}
+
+const formatLocation = (account) => {
+  const parts = []
+  if (account.country) parts.push(account.country)
+  if (account.province) parts.push(account.province)
+  if (account.city) parts.push(account.city)
+  if (account.district) parts.push(account.district)
+  return parts.join(' ')
 }
 
 onMounted(() => {

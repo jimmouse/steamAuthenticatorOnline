@@ -96,6 +96,7 @@ const emit = defineEmits(['update:modelValue', 'success'])
 const visible = ref(props.modelValue)
 const activeTab = ref('browser')
 const submitting = ref(false)
+const autoLoading = ref(false)
 
 const form = reactive({
   cookieString: '',

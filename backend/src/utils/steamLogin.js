@@ -89,17 +89,49 @@ async function validateSession(sessionData) {
  */
 function parseSessionFromCookie(cookieString) {
   const cookies = {};
-  cookieString.split(';').forEach(cookie => {
-    const [key, value] = cookie.trim().split('=');
-    if (key && value) {
+  
+  // 支持多种格式：
+  // 1. sessionid=xxx; steamLoginSecure=yyy
+  // 2. 直接粘贴steamLoginSecure的值
+  // 3. sessionid=xxx\nsteamLoginSecure=yyy
+  
+  const lines = cookieString.split(/[\n;]/).map(s => s.trim()).filter(s => s);
+  
+  lines.forEach(line => {
+    const equalIndex = line.indexOf('=');
+    if (equalIndex > 0) {
+      const key = line.substring(0, equalIndex).trim();
+      const value = line.substring(equalIndex + 1).trim();
       cookies[key] = value;
     }
   });
 
+  // 如果没有找到键值对，可能是直接粘贴了steamLoginSecure的值
+  if (!cookies.sessionid && !cookies.steamLoginSecure && cookieString.includes('%7C%7C')) {
+    // 尝试解析为steamLoginSecure值
+    const parts = cookieString.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      cookies.steamLoginSecure = parts[0];
+      cookies.sessionid = parts[1];
+    } else {
+      cookies.steamLoginSecure = cookieString.trim();
+    }
+  }
+
+  // 从steamLoginSecure中提取SteamID
+  let steamId = null;
+  if (cookies.steamLoginSecure) {
+    // steamLoginSecure格式: SteamID%7C%7CToken 或 SteamID||Token
+    const match = cookies.steamLoginSecure.match(/^(\d+)(%7C%7C|\|\|)/);
+    if (match) {
+      steamId = match[1];
+    }
+  }
+
   return {
     SessionID: cookies.sessionid || null,
     SteamLoginSecure: cookies.steamLoginSecure || null,
-    SteamID: cookies.steamLoginSecure ? cookies.steamLoginSecure.split('%7C%7C')[0] : null
+    SteamID: steamId
   };
 }
 

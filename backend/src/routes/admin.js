@@ -180,7 +180,7 @@ router.get('/steam-accounts', (req, res) => {
 
 router.post('/steam-accounts', upload.single('sdaFile'), async (req, res) => {
   try {
-    const { description, password, email_address, email_login_url, email_password, colorType, colorValue, colorGradient, notes } = req.body;
+    const { description, password, email_address, email_login_url, email_password, colorType, colorValue, colorGradient, notes, country, province, city, district } = req.body;
     const sdaFile = req.file;
 
     if (!sdaFile) {
@@ -192,8 +192,8 @@ router.post('/steam-accounts', upload.single('sdaFile'), async (req, res) => {
 
     db.run(
       `INSERT INTO steam_accounts 
-       (account_name, username, password, shared_secret, identity_secret, revocation_code, sda_data, created_by, color_type, color_value, color_gradient, notes, email_address, email_login_url, email_password) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (account_name, username, password, shared_secret, identity_secret, revocation_code, sda_data, created_by, color_type, color_value, color_gradient, notes, email_address, email_login_url, email_password, country, province, city, district) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         description || sdaData.accountName,
         sdaData.accountName,
@@ -209,7 +209,11 @@ router.post('/steam-accounts', upload.single('sdaFile'), async (req, res) => {
         notes || null,
         email_address || null,
         email_login_url || null,
-        email_password || null
+        email_password || null,
+        country || null,
+        province || null,
+        city || null,
+        district || null
       ],
       function(err) {
         fs.unlinkSync(sdaFile.path);
@@ -236,7 +240,7 @@ router.post('/steam-accounts', upload.single('sdaFile'), async (req, res) => {
 
 router.put('/steam-accounts/:id', (req, res) => {
   const accountId = req.params.id;
-  const { description, password, is_active, colorType, colorValue, colorGradient, notes, email_address, email_login_url, email_password } = req.body;
+  const { description, password, is_active, colorType, colorValue, colorGradient, notes, email_address, email_login_url, email_password, country, province, city, district } = req.body;
 
   const updates = [];
   const params = [];
@@ -289,6 +293,26 @@ router.put('/steam-accounts/:id', (req, res) => {
   if (email_password !== undefined) {
     updates.push('email_password = ?');
     params.push(email_password);
+  }
+
+  if (country !== undefined) {
+    updates.push('country = ?');
+    params.push(country);
+  }
+
+  if (province !== undefined) {
+    updates.push('province = ?');
+    params.push(province);
+  }
+
+  if (city !== undefined) {
+    updates.push('city = ?');
+    params.push(city);
+  }
+
+  if (district !== undefined) {
+    updates.push('district = ?');
+    params.push(district);
   }
 
   if (updates.length === 0) {
@@ -1044,32 +1068,63 @@ router.post('/steam-accounts/:id/session', async (req, res) => {
   const { sessionData, cookieString } = req.body;
   const { updateAccountSession, parseSessionFromCookie, validateSession } = require('../utils/steamLogin');
 
+  console.log('[SESSION_UPDATE] 开始更新Session，账户ID:', id);
+  console.log('[SESSION_UPDATE] 请求数据:', { 
+    hasCookieString: !!cookieString, 
+    hasSessionData: !!sessionData,
+    cookieLength: cookieString ? cookieString.length : 0
+  });
+
   try {
     let session;
 
     // 如果提供了Cookie字符串，解析它
     if (cookieString) {
+      console.log('[SESSION_UPDATE] 解析Cookie字符串...');
       session = parseSessionFromCookie(cookieString);
+      console.log('[SESSION_UPDATE] 解析结果:', {
+        hasSessionID: !!session.SessionID,
+        hasSteamID: !!session.SteamID,
+        hasSteamLoginSecure: !!session.SteamLoginSecure,
+        sessionIDLength: session.SessionID ? session.SessionID.length : 0,
+        steamID: session.SteamID
+      });
+      
       if (!session.SessionID || !session.SteamID) {
-        return res.status(400).json({ error: 'Invalid cookie string' });
+        console.error('[SESSION_UPDATE] Cookie解析失败，缺少必要字段');
+        return res.status(400).json({ 
+          error: 'Invalid cookie string',
+          message: '无法从Cookie中提取SessionID或SteamID，请检查Cookie格式',
+          details: {
+            hasSessionID: !!session.SessionID,
+            hasSteamID: !!session.SteamID
+          }
+        });
       }
     } else if (sessionData) {
+      console.log('[SESSION_UPDATE] 使用提供的sessionData');
       session = sessionData;
     } else {
+      console.error('[SESSION_UPDATE] 缺少Session数据');
       return res.status(400).json({ error: 'Session data or cookie string required' });
     }
 
+    console.log('[SESSION_UPDATE] 开始验证Session...');
     // 验证Session是否有效
     const isValid = await validateSession(session);
+    console.log('[SESSION_UPDATE] Session验证结果:', isValid);
+    
     if (!isValid) {
       return res.status(400).json({ 
         error: 'Invalid session', 
-        message: 'Session验证失败，请确保Cookie是最新的' 
+        message: 'Session验证失败，请确保Cookie是最新的。提示：可能需要重新登录Steam获取新的Cookie' 
       });
     }
 
+    console.log('[SESSION_UPDATE] 开始更新数据库...');
     // 更新数据库
     const updatedSession = await updateAccountSession(db, id, session);
+    console.log('[SESSION_UPDATE] 数据库更新成功');
 
     res.json({ 
       message: 'Session updated successfully',
@@ -1079,7 +1134,7 @@ router.post('/steam-accounts/:id/session', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Failed to update session:', error);
+    console.error('[SESSION_UPDATE] 错误:', error);
     res.status(500).json({ error: 'Failed to update session', message: error.message });
   }
 });
