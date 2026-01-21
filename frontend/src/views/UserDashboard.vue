@@ -1,16 +1,21 @@
 <template>
   <div class="user-dashboard" :style="userBgStyle">
+    <div class="user-header">
+      <div class="user-info">
+        <el-icon><Avatar /></el-icon>
+        <span class="username">{{ displayUsername }}</span>
+      </div>
+      <el-button type="danger" size="small" @click="handleLogout">
+        退出登录
+      </el-button>
+    </div>
+
     <div v-if="loading" class="loading-container">
       <el-icon class="is-loading" :size="40"><Loading /></el-icon>
     </div>
     
     <div v-else-if="accounts.length === 0" class="empty-state">
       <el-empty description="暂无可用的 Steam 账户" />
-      <div class="logout-container">
-        <el-button type="danger" @click="handleLogout">
-          退出登录
-        </el-button>
-      </div>
     </div>
     
     <div v-else class="accounts-container">
@@ -254,6 +259,23 @@ const selectedConfirmations = ref([])
 const currentAccount = ref(null)
 const batchProcessing = ref(false)
 
+const displayUsername = computed(() => {
+  const user = authStore.user
+  if (!user) return '未知用户'
+  
+  // 临时用户显示授权码前6位
+  if (user.role === 'temp_user' && user.username) {
+    const match = user.username.match(/临时用户_([a-f0-9]+)/)
+    if (match && match[1]) {
+      return `授权码: ${match[1].substring(0, 6)}...`
+    }
+    return user.username
+  }
+  
+  // 普通用户显示用户名
+  return user.username
+})
+
 const userBgStyle = computed(() => {
   if (systemSettings.value.user_bg_type === 'gradient' && systemSettings.value.user_bg_gradient) {
     const colors = systemSettings.value.user_bg_gradient.split(',')
@@ -270,9 +292,15 @@ const userBgStyle = computed(() => {
 const fetchAccounts = async () => {
   try {
     const response = await axios.get('/api/user/accounts')
+    console.log('[FETCH_ACCOUNTS] Response:', response.data)
+    console.log('[FETCH_ACCOUNTS] User:', authStore.user)
     accounts.value = response.data.accounts
+    if (accounts.value.length === 0) {
+      console.warn('[FETCH_ACCOUNTS] No accounts returned from API')
+    }
   } catch (error) {
     console.error('Failed to fetch accounts:', error)
+    ElMessage.error('获取账户列表失败：' + (error.response?.data?.error || error.message))
   } finally {
     loading.value = false
   }
@@ -377,12 +405,23 @@ const refreshConfirmations = async () => {
     const errorMsg = error.response?.data?.message || '获取确认列表失败'
     const hint = error.response?.data?.hint
     
-    ElMessage({
-      message: hint ? `${errorMsg}\n\n${hint}` : errorMsg,
-      type: 'warning',
-      duration: 5000,
-      showClose: true
-    })
+    // 如果是400错误且包含session相关信息，显示更友好的提示
+    if (error.response?.status === 400 && errorMsg.includes('会话')) {
+      ElMessage({
+        message: '此账户暂不支持在线查看确认。\n\n原因：Steam确认功能需要有效的登录会话。\n建议：请使用Steam官方应用或Steam Desktop Authenticator查看确认。',
+        type: 'info',
+        duration: 8000,
+        showClose: true,
+        dangerouslyUseHTMLString: true
+      })
+    } else {
+      ElMessage({
+        message: hint ? `${errorMsg}\n\n${hint}` : errorMsg,
+        type: 'warning',
+        duration: 5000,
+        showClose: true
+      })
+    }
     
     confirmationDialogVisible.value = false
   } finally {
@@ -464,12 +503,37 @@ onUnmounted(() => {
 <style scoped>
 .user-dashboard {
   min-height: 100vh;
+  padding: 20px;
   transition: background 0.3s ease;
-  padding: 40px 20px;
+}
+
+.user-header {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
+  padding: 15px 20px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.user-info .el-icon {
+  font-size: 24px;
+  color: #409eff;
+}
+
+.username {
+  font-weight: 600;
 }
 
 .loading-container {
