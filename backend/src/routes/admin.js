@@ -543,10 +543,15 @@ router.get('/logs', (req, res) => {
 
   db.all(query, params, (err, logs) => {
     if (err) {
+      // 如果表不存在，返回空数组而不是错误
+      if (err.message.includes('no such table')) {
+        console.log('login_logs table does not exist yet');
+        return res.json({ logs: [] });
+      }
       console.error('Database error:', err);
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error', details: err.message });
     }
-    res.json({ logs });
+    res.json({ logs: logs || [] });
   });
 });
 
