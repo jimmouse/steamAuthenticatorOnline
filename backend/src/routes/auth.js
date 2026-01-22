@@ -130,13 +130,13 @@ router.post('/login-with-code', async (req, res) => {
       // 检查是否过期
       if (tempUser.expires_at && new Date(tempUser.expires_at) < new Date()) {
         console.log(`[ACCESS_CODE_LOGIN] 授权码已过期`);
-        return res.status(401).json({ error: 'Access code expired' });
+        return res.status(401).json({ error: '授权码已过期，请联系管理员' });
       }
 
       // 检查使用次数
       if (tempUser.max_uses && tempUser.current_uses >= tempUser.max_uses) {
         console.log(`[ACCESS_CODE_LOGIN] 授权码使用次数已达上限`);
-        return res.status(401).json({ error: 'Access code usage limit reached' });
+        return res.status(401).json({ error: '授权码使用次数已达上限，请联系管理员' });
       }
 
       console.log(`[ACCESS_CODE_LOGIN] 授权码验证成功，账户: ${tempUser.account_name}`);
