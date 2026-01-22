@@ -615,13 +615,20 @@ router.delete('/pending-accounts/:id', (req, res) => {
   });
 });
 
-router.post('/pending-accounts/:id/activate', (req, res) => {
+router.post('/pending-accounts/:id/activate', upload.single('verificationImage'), (req, res) => {
   const { id } = req.params;
   const { steamAccountId } = req.body;
   
+  let verificationImageBase64 = null;
+  if (req.file) {
+    const imageBuffer = fs.readFileSync(req.file.path);
+    verificationImageBase64 = imageBuffer.toString('base64');
+    fs.unlinkSync(req.file.path);
+  }
+  
   db.run(
-    'UPDATE pending_steam_accounts SET status = ?, activated_at = CURRENT_TIMESTAMP, steam_account_id = ? WHERE id = ?',
-    ['activated', steamAccountId, id],
+    'UPDATE pending_steam_accounts SET status = ?, activated_at = CURRENT_TIMESTAMP, steam_account_id = ?, verification_image = ? WHERE id = ?',
+    ['activated', steamAccountId, verificationImageBase64, id],
     function(err) {
       if (err) {
         console.error('Database error:', err);
@@ -630,6 +637,19 @@ router.post('/pending-accounts/:id/activate', (req, res) => {
       if (this.changes === 0) {
         return res.status(404).json({ error: 'Account not found' });
       }
+      
+      if (verificationImageBase64 && steamAccountId) {
+        db.run(
+          'UPDATE steam_accounts SET verification_image = ? WHERE id = ?',
+          [verificationImageBase64, steamAccountId],
+          (err) => {
+            if (err) {
+              console.error('Error updating steam_accounts verification_image:', err);
+            }
+          }
+        );
+      }
+      
       res.json({ message: 'Account activated successfully' });
     }
   );
@@ -663,7 +683,8 @@ router.get('/steam-accounts/:id/preview', async (req, res) => {
       notes: account.notes,
       colorType: account.color_type,
       colorValue: account.color_value,
-      colorGradient: account.color_gradient
+      colorGradient: account.color_gradient,
+      verificationImage: account.verification_image
     });
   } catch (error) {
     console.error('Database error:', error);

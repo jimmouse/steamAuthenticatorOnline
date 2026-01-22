@@ -279,6 +279,23 @@
             </template>
           </el-upload>
         </el-form-item>
+        <el-form-item label="验证码图片">
+          <el-upload
+            ref="imageUploadRef"
+            :auto-upload="false"
+            :limit="1"
+            accept="image/*"
+            :on-change="handleImageChange"
+            list-type="picture-card"
+          >
+            <el-icon><Upload /></el-icon>
+            <template #tip>
+              <div class="el-upload__tip">
+                可选：上传Steam注册验证码截图
+              </div>
+            </template>
+          </el-upload>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="activateDialogVisible = false">取消</el-button>
@@ -307,6 +324,8 @@ const saving = ref(false)
 const activating = ref(false)
 const generatedAccount = ref(null)
 const uploadRef = ref(null)
+const imageUploadRef = ref(null)
+const verificationImage = ref(null)
 
 // 用户名生成相关
 const usernameMode = ref('wordlist')
@@ -335,7 +354,8 @@ const activateForm = reactive({
   id: null,
   username: '',
   description: '',
-  mafile: null
+  mafile: null,
+  verificationImage: null
 })
 
 const fetchAccounts = async () => {
@@ -453,11 +473,22 @@ const showActivateDialog = (account) => {
   activateForm.username = account.username
   activateForm.description = ''
   activateForm.mafile = null
+  activateForm.verificationImage = null
+  if (uploadRef.value) {
+    uploadRef.value.clearFiles()
+  }
+  if (imageUploadRef.value) {
+    imageUploadRef.value.clearFiles()
+  }
   activateDialogVisible.value = true
 }
 
 const handleFileChange = (file) => {
   activateForm.mafile = file.raw
+}
+
+const handleImageChange = (file) => {
+  activateForm.verificationImage = file.raw
 }
 
 const activateAccount = async () => {
@@ -477,9 +508,15 @@ const activateAccount = async () => {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
     
-    // 标记为已激活
-    await axios.post(`/api/admin/pending-accounts/${activateForm.id}/activate`, {
-      steamAccountId: uploadResponse.data.accountId
+    // 标记为已激活，同时上传验证码图片
+    const activateFormData = new FormData()
+    activateFormData.append('steamAccountId', uploadResponse.data.accountId)
+    if (activateForm.verificationImage) {
+      activateFormData.append('verificationImage', activateForm.verificationImage)
+    }
+    
+    await axios.post(`/api/admin/pending-accounts/${activateForm.id}/activate`, activateFormData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
     })
     
     ElMessage.success('账户激活成功')
@@ -487,7 +524,7 @@ const activateAccount = async () => {
     fetchAccounts()
   } catch (error) {
     console.error('Failed to activate account:', error)
-    ElMessage.error('激活失败')
+    ElMessage.error('激活失败: ' + (error.response?.data?.error || error.message))
   } finally {
     activating.value = false
   }

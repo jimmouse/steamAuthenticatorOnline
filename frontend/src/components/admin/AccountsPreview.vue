@@ -81,6 +81,16 @@
             <div v-show="notesExpanded" class="notes-content" v-html="selectedAccount.notes"></div>
           </div>
           
+          <div v-if="selectedAccount.verificationImage" class="info-item">
+            <label>🖼️ 验证码图片：</label>
+            <el-image
+              :src="`data:image/png;base64,${selectedAccount.verificationImage}`"
+              fit="contain"
+              style="max-width: 300px; cursor: pointer;"
+              :preview-src-list="[`data:image/png;base64,${selectedAccount.verificationImage}`]"
+            />
+          </div>
+          
           <div class="info-item auth-code">
             <label>验证码：</label>
             <div class="code-container">
