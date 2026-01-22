@@ -8,7 +8,7 @@ import axios from 'axios'
 
 const applyTheme = async () => {
   try {
-    const response = await axios.get('http://localhost:3010/api/auth/settings')
+    const response = await axios.get('/api/auth/settings')
     const themeMode = response.data.settings.theme_mode || 'light'
     
     if (themeMode === 'dark') {

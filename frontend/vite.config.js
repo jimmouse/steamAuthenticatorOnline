@@ -20,8 +20,8 @@ export default defineConfig({
     }
   },
   build: {
-    target: 'es2015',
-    cssTarget: 'chrome61',
+    target: 'es2015', // 支持更低版本的浏览器
+    cssTarget: 'chrome61', // CSS兼容性
     minify: 'terser',
     terserOptions: {
       compress: {

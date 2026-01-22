@@ -559,23 +559,14 @@ router.post('/api-keys', (req, res) => {
         message: 'API key created successfully',
         api_key: apiKey,
         id: this.lastID
-      });
-    }
-  );
-});
-
-router.delete('/api-keys/:id', (req, res) => {
-  const apiKeyId = req.params.id;
-
-  db.run('DELETE FROM api_keys WHERE id = ?', [apiKeyId], function(err) {
     if (err) {
       console.error('Database error:', err);
       return res.status(500).json({ error: 'Internal server error' });
     }
     if (this.changes === 0) {
-      return res.status(404).json({ error: 'API key not found' });
+      return res.status(404).json({ error: 'Account not found' });
     }
-    res.json({ message: 'API key deleted successfully' });
+    res.json({ message: 'Account deleted successfully' });
   });
 });
 
@@ -653,12 +644,13 @@ router.post('/pending-accounts', (req, res) => {
 });
 
 router.post('/pending-accounts/generate', (req, res) => {
-  const { emailDomain } = req.body;
+  const { emailDomain, username: customUsername } = req.body;
   const { generateUsername, generatePassword, generateEmail } = require('../utils/steamRegister');
   
-  const username = generateUsername();
+  // 如果提供了自定义用户名则使用，否则生成
+  const username = customUsername || generateUsername();
   const password = generatePassword();
-  const email = generateEmail(username, emailDomain);
+  const email = emailDomain ? generateEmail(username, emailDomain) : null;
   
   res.json({
     username,
@@ -668,8 +660,7 @@ router.post('/pending-accounts/generate', (req, res) => {
   });
 });
 
-router.delete('/pending-accounts/:id', (req, res) => {
-  const { id } = req.params;
+// ...
   
   db.run('DELETE FROM pending_steam_accounts WHERE id = ?', [id], function(err) {
     if (err) {

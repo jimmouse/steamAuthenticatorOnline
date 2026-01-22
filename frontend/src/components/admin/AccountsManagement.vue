@@ -31,4 +31,10 @@ import AccountsPreviewSimple from '@/components/admin/AccountsPreviewSimple.vue'
   color: #909399;
   font-size: 13px;
 }
+
+.detail-item .label {
+  font-weight: 500;
+  color: var(--el-text-color-regular);
+  min-width: 80px;
+}
 </style>

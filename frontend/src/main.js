@@ -1,3 +1,6 @@
+// Import polyfills first for older browsers
+import './polyfills'
+
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import ElementPlus from 'element-plus'

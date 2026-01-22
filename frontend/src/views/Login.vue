@@ -179,7 +179,7 @@ const handleCodeLogin = async () => {
 
 const fetchSettings = async () => {
   try {
-    const response = await axios.get('http://localhost:3010/api/auth/settings')
+    const response = await axios.get('/api/auth/settings')
     Object.assign(systemSettings.value, response.data.settings)
   } catch (error) {
     console.error('Failed to fetch settings:', error)

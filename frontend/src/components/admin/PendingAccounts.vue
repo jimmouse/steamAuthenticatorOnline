@@ -87,9 +87,65 @@
     <el-dialog
       v-model="generateDialogVisible"
       title="生成Steam账户信息"
-      width="600px"
+      width="700px"
     >
-      <el-form label-width="100px">
+      <el-form label-width="120px">
+        <el-form-item label="用户名生成模式">
+          <el-radio-group v-model="usernameMode">
+            <el-radio value="wordlist">词库组合</el-radio>
+            <el-radio value="foreign">外文名</el-radio>
+            <el-radio value="random">随机字符</el-radio>
+            <el-radio value="mixed">混合模式</el-radio>
+          </el-radio-group>
+        </el-form-item>
+
+        <!-- 词库组合模式选项 -->
+        <template v-if="usernameMode === 'wordlist'">
+          <el-form-item label="词库选择">
+            <el-radio-group v-model="useCustomWords">
+              <el-radio :value="false">使用默认词库</el-radio>
+              <el-radio :value="true">使用自定义词库</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          
+          <el-form-item v-if="useCustomWords" label="自定义词库">
+            <el-input
+              v-model="customWordsInput"
+              type="textarea"
+              :rows="3"
+              placeholder="输入词汇，每行一个或用逗号分隔，例如：&#10;Dragon, Phoenix, Tiger&#10;或每行一个词"
+            />
+            <div style="color: #909399; font-size: 12px; margin-top: 5px;">
+              当前词库: {{ customWordsList.length }} 个词
+            </div>
+          </el-form-item>
+          
+          <el-form-item label="组合词数">
+            <el-slider v-model="wordCount" :min="2" :max="4" :marks="{ 2: '2', 3: '3', 4: '4' }" />
+          </el-form-item>
+        </template>
+
+        <!-- 随机字符模式选项 -->
+        <el-form-item v-if="usernameMode === 'random'" label="字符长度">
+          <el-slider v-model="randomLength" :min="6" :max="12" :marks="{ 6: '6', 8: '8', 10: '10', 12: '12' }" />
+        </el-form-item>
+
+        <!-- 数字后缀选项 -->
+        <el-form-item label="添加数字后缀">
+          <el-switch v-model="addNumber" />
+          <template v-if="addNumber">
+            <el-input-number
+              v-model="numberDigits"
+              :min="2"
+              :max="6"
+              style="margin-left: 10px; width: 120px;"
+            />
+            <span style="margin-left: 5px; color: #909399; font-size: 12px;">位数字</span>
+          </template>
+        </el-form-item>
+
+        <el-divider />
+
         <el-form-item label="邮箱域名">
           <el-input
             v-model="emailDomain"
@@ -101,9 +157,25 @@
             可选，留空则不生成邮箱
           </div>
         </el-form-item>
+        
         <el-form-item>
           <el-button type="primary" @click="generateAccount" :loading="generating">
             生成账户信息
+          </el-button>
+          <el-button @click="previewUsername" :disabled="generating">
+            预览用户名
+          </el-button>
+        </el-form-item>
+        
+        <el-form-item v-if="previewedUsername" label="预览">
+          <el-tag type="success" size="large">{{ previewedUsername }}</el-tag>
+          <el-button 
+            size="small" 
+            :icon="Refresh" 
+            @click="previewUsername" 
+            style="margin-left: 10px;"
+          >
+            换一个
           </el-button>
         </el-form-item>
       </el-form>
@@ -219,10 +291,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { DocumentCopy, View, Hide } from '@element-plus/icons-vue'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { ElMessage } from 'element-plus'
+import { DocumentCopy, Upload, View, Hide, Refresh } from '@element-plus/icons-vue'
 import axios from '@/utils/axios'
+import { generateUsername, getDefaultWordList } from '@/utils/usernameGenerator'
 
 const accounts = ref([])
 const showPasswords = reactive({})
@@ -234,6 +307,29 @@ const saving = ref(false)
 const activating = ref(false)
 const generatedAccount = ref(null)
 const uploadRef = ref(null)
+
+// 用户名生成相关
+const usernameMode = ref('wordlist')
+const useCustomWords = ref(false)
+const customWordsInput = ref('')
+const wordCount = ref(2)
+const randomLength = ref(8)
+const addNumber = ref(false)
+const numberDigits = ref(4)
+const previewedUsername = ref('')
+
+// 计算自定义词库列表
+const customWordsList = computed(() => {
+  if (!customWordsInput.value.trim()) return []
+  
+  // 支持逗号分隔或换行分隔
+  const words = customWordsInput.value
+    .split(/[,\n]+/)
+    .map(w => w.trim())
+    .filter(w => w.length > 0)
+  
+  return words
+})
 
 const activateForm = reactive({
   id: null,
@@ -255,14 +351,52 @@ const fetchAccounts = async () => {
 const showGenerateDialog = () => {
   generatedAccount.value = null
   emailDomain.value = ''
+  previewedUsername.value = ''
+  usernameMode.value = 'wordlist'
+  useCustomWords.value = false
+  customWordsInput.value = ''
+  wordCount.value = 2
+  randomLength.value = 8
+  addNumber.value = false
+  numberDigits.value = 4
   generateDialogVisible.value = true
+}
+
+const previewUsername = () => {
+  try {
+    const options = {
+      mode: usernameMode.value,
+      customWords: useCustomWords.value ? customWordsList.value : null,
+      wordCount: wordCount.value,
+      length: randomLength.value,
+      addNumber: addNumber.value,
+      numberDigits: numberDigits.value
+    }
+    
+    previewedUsername.value = generateUsername(options)
+  } catch (error) {
+    ElMessage.error(error.message || '生成失败')
+  }
 }
 
 const generateAccount = async () => {
   generating.value = true
   try {
+    // 生成用户名
+    const options = {
+      mode: usernameMode.value,
+      customWords: useCustomWords.value ? customWordsList.value : null,
+      wordCount: wordCount.value,
+      length: randomLength.value,
+      addNumber: addNumber.value,
+      numberDigits: numberDigits.value
+    }
+    
+    const username = generateUsername(options)
+    
     const response = await axios.post('/api/admin/pending-accounts/generate', {
-      emailDomain: emailDomain.value || null
+      emailDomain: emailDomain.value || null,
+      username: username
     })
     generatedAccount.value = response.data
     
