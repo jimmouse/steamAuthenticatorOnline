@@ -735,9 +735,12 @@ router.get('/steam-accounts/:id/code', async (req, res) => {
 router.get('/temp-users/:code/logs', (req, res) => {
   const { code } = req.params;
   
-  // 先检查temp_users表是否存在该记录
+  // 先检查temp_users表是否存在该记录，并通过steam_account_id获取username
   db.get(
-    'SELECT username FROM temp_users WHERE access_code = ?',
+    `SELECT sa.username 
+     FROM temp_users tu 
+     JOIN steam_accounts sa ON tu.steam_account_id = sa.id 
+     WHERE tu.access_code = ?`,
     [code],
     (err, tempUser) => {
       if (err) {
