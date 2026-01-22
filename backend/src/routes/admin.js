@@ -468,4 +468,60 @@ router.post('/pending-accounts/:id/activate', (req, res) => {
   );
 });
 
+// 获取Steam账户预览信息
+router.get('/steam-accounts/:id/preview', async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const account = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT * FROM steam_accounts WHERE id = ?',
+        [id],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+    
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+    
+    res.json({
+      id: account.id,
+      accountName: account.account_name,
+      username: account.username,
+      password: account.password,
+      notes: account.notes,
+      colorType: account.color_type,
+      colorValue: account.color_value,
+      colorGradient: account.color_gradient
+    });
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// 查询临时用户的登录记录
+router.get('/temp-users/:code/logs', (req, res) => {
+  const { code } = req.params;
+  
+  db.all(
+    `SELECT ll.* FROM login_logs ll
+     INNER JOIN temp_users tu ON ll.username = tu.username
+     WHERE tu.access_code = ?
+     ORDER BY ll.created_at DESC`,
+    [code],
+    (err, logs) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+      res.json({ logs });
+    }
+  );
+});
+
 module.exports = router;
