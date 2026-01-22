@@ -35,9 +35,40 @@
               <span class="label">ID:</span>
               <span class="value">{{ account.id }}</span>
             </div>
-            <div class="detail-item">
-              <span class="label">用户名:</span>
-              <span class="value">{{ account.username }}</span>
+            <div class="detail-item with-copy">
+              <div class="label-value">
+                <span class="label">用户名:</span>
+                <span class="value">{{ account.username }}</span>
+              </div>
+              <el-button 
+                size="small" 
+                :icon="DocumentCopy" 
+                @click="copyToClipboard(account.username, '用户名')"
+              />
+            </div>
+            <div class="detail-item with-copy">
+              <div class="label-value">
+                <span class="label">密码:</span>
+                <span class="value">{{ account.password ? '••••••••' : '未设置' }}</span>
+              </div>
+              <el-button 
+                v-if="account.password"
+                size="small" 
+                :icon="DocumentCopy" 
+                @click="copyToClipboard(account.password, '密码')"
+              />
+            </div>
+            <div class="detail-item with-copy">
+              <div class="label-value">
+                <span class="label">令牌码:</span>
+                <span class="value">{{ account.currentCode || '加载中...' }}</span>
+              </div>
+              <el-button 
+                v-if="account.currentCode"
+                size="small" 
+                :icon="DocumentCopy" 
+                @click="copyToClipboard(account.currentCode, '令牌码')"
+              />
             </div>
             <div v-if="account.email_address" class="detail-item">
               <span class="label">邮箱:</span>
@@ -46,10 +77,6 @@
             <div v-if="account.country" class="detail-item">
               <span class="label">地区:</span>
               <span class="value">{{ [account.country, account.province, account.city].filter(Boolean).join(' ') }}</span>
-            </div>
-            <div v-if="account.color_type" class="detail-item">
-              <span class="label">卡片样式:</span>
-              <span class="value">{{ account.color_type === 'solid' ? '单色' : '渐变' }}</span>
             </div>
             <div class="detail-item">
               <span class="label">创建时间:</span>
@@ -74,10 +101,27 @@
 
     <el-dialog
       v-model="dialogVisible"
-      :title="editingAccount ? '编辑账户' : '添加账户'"
+      :title="isEditMode ? '编辑账户' : '添加账户'"
       width="600px"
     >
       <el-form v-if="editingAccount" label-width="120px">
+        <el-form-item v-if="!isEditMode" label="SDA 文件">
+          <el-upload
+            ref="uploadRef"
+            :auto-upload="false"
+            :limit="1"
+            accept=".mafile"
+            :on-change="handleFileChange"
+            :file-list="fileList"
+          >
+            <el-button type="primary">选择 .mafile 文件</el-button>
+            <template #tip>
+              <div class="el-upload__tip">
+                只支持 .mafile 格式的 SDA 文件
+              </div>
+            </template>
+          </el-upload>
+        </el-form-item>
         <el-form-item label="账户名称">
           <el-input v-model="editingAccount.account_name" />
         </el-form-item>
@@ -136,9 +180,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import axios from '@/utils/axios'
 import { countries } from '@/utils/countries'
+import { DocumentCopy } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
 const allAccounts = ref([])
 const loading = ref(true)
@@ -146,18 +192,38 @@ const error = ref(null)
 const dialogVisible = ref(false)
 const editingAccount = ref(null)
 const saving = ref(false)
+const isEditMode = ref(false)
+const uploadRef = ref(null)
+const fileList = ref([])
+const uploadedFile = ref(null)
+let codeRefreshInterval = null
 
 const showCreateDialog = () => {
+  isEditMode.value = false
+  fileList.value = []
+  uploadedFile.value = null
   editingAccount.value = {
     account_name: '',
     username: '',
     password: '',
+    email_address: '',
+    email_login_url: '',
+    email_password: '',
     country: '',
     province: '',
     city: '',
+    color_type: 'gradient',
+    color_value: '#667eea',
+    gradient_start: '#667eea',
+    gradient_end: '#764ba2',
     is_active: 1
   }
   dialogVisible.value = true
+}
+
+const handleFileChange = (file) => {
+  uploadedFile.value = file.raw
+  fileList.value = [file]
 }
 
 const getCardHeaderStyle = (account) => {
@@ -197,6 +263,9 @@ const viewAccount = (id) => {
 }
 
 const editAccount = (account) => {
+  isEditMode.value = true
+  fileList.value = []
+  uploadedFile.value = null
   const gradientColors = account.color_gradient ? account.color_gradient.split(',') : ['#667eea', '#764ba2']
   editingAccount.value = {
     ...account,
@@ -211,35 +280,66 @@ const saveAccount = async () => {
   
   saving.value = true
   try {
-    const data = {
-      account_name: editingAccount.value.account_name,
-      email_address: editingAccount.value.email_address,
-      email_login_url: editingAccount.value.email_login_url,
-      country: editingAccount.value.country,
-      province: editingAccount.value.province,
-      city: editingAccount.value.city,
-      color_type: editingAccount.value.color_type,
-      color_value: editingAccount.value.color_value,
-      color_gradient: editingAccount.value.color_type === 'gradient' 
-        ? `${editingAccount.value.gradient_start},${editingAccount.value.gradient_end}`
-        : null,
-      is_active: editingAccount.value.is_active
+    if (isEditMode.value) {
+      const data = {
+        account_name: editingAccount.value.account_name,
+        email_address: editingAccount.value.email_address,
+        email_login_url: editingAccount.value.email_login_url,
+        country: editingAccount.value.country,
+        province: editingAccount.value.province,
+        city: editingAccount.value.city,
+        color_type: editingAccount.value.color_type,
+        color_value: editingAccount.value.color_value,
+        color_gradient: editingAccount.value.color_type === 'gradient' 
+          ? `${editingAccount.value.gradient_start},${editingAccount.value.gradient_end}`
+          : null,
+        is_active: editingAccount.value.is_active
+      }
+      
+      if (editingAccount.value.password) {
+        data.password = editingAccount.value.password
+      }
+      
+      if (editingAccount.value.email_password) {
+        data.email_password = editingAccount.value.email_password
+      }
+      
+      await axios.put(`/api/admin/steam-accounts/${editingAccount.value.id}`, data)
+    } else {
+      if (!uploadedFile.value) {
+        error.value = '请选择 .mafile 文件'
+        saving.value = false
+        return
+      }
+      
+      const formData = new FormData()
+      formData.append('sdaFile', uploadedFile.value)
+      formData.append('description', editingAccount.value.account_name)
+      formData.append('password', editingAccount.value.password)
+      formData.append('email_address', editingAccount.value.email_address)
+      formData.append('email_login_url', editingAccount.value.email_login_url)
+      formData.append('email_password', editingAccount.value.email_password)
+      formData.append('country', editingAccount.value.country)
+      formData.append('province', editingAccount.value.province)
+      formData.append('city', editingAccount.value.city)
+      formData.append('colorType', editingAccount.value.color_type)
+      formData.append('colorValue', editingAccount.value.color_value)
+      if (editingAccount.value.color_type === 'gradient') {
+        formData.append('colorGradient', `${editingAccount.value.gradient_start},${editingAccount.value.gradient_end}`)
+      }
+      
+      await axios.post('/api/admin/steam-accounts', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
     }
     
-    if (editingAccount.value.password) {
-      data.password = editingAccount.value.password
-    }
-    
-    if (editingAccount.value.email_password) {
-      data.email_password = editingAccount.value.email_password
-    }
-    
-    await axios.put(`/api/admin/steam-accounts/${editingAccount.value.id}`, data)
     dialogVisible.value = false
     await fetchAllAccounts()
   } catch (err) {
     console.error('保存失败:', err)
-    error.value = '保存失败: ' + (err.message || '未知错误')
+    error.value = '保存失败: ' + (err.response?.data?.error || err.message || '未知错误')
   } finally {
     saving.value = false
   }
@@ -261,6 +361,9 @@ const fetchAllAccounts = async () => {
     console.log('API响应:', response)
     allAccounts.value = response.data.accounts || []
     console.log('账户列表:', allAccounts.value)
+    
+    // 为每个账户获取令牌码
+    refreshAllCodes()
   } catch (err) {
     console.error('获取失败:', err)
     error.value = err.message || '未知错误'
@@ -269,8 +372,37 @@ const fetchAllAccounts = async () => {
   }
 }
 
+const refreshAllCodes = async () => {
+  for (const account of allAccounts.value) {
+    try {
+      const response = await axios.get(`/api/admin/steam-accounts/${account.id}/code`)
+      account.currentCode = response.data.authCode
+    } catch (err) {
+      console.error(`获取账户 ${account.id} 令牌码失败:`, err)
+      account.currentCode = null
+    }
+  }
+}
+
+const copyToClipboard = async (text, label) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    ElMessage.success(`${label}已复制到剪贴板`)
+  } catch (error) {
+    ElMessage.error('复制失败')
+  }
+}
+
 onMounted(() => {
   fetchAllAccounts()
+  // 每30秒刷新一次令牌码
+  codeRefreshInterval = setInterval(refreshAllCodes, 30000)
+})
+
+onUnmounted(() => {
+  if (codeRefreshInterval) {
+    clearInterval(codeRefreshInterval)
+  }
 })
 </script>
 
@@ -328,12 +460,23 @@ onMounted(() => {
 .detail-item {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   padding: 8px 0;
   border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 .detail-item:last-child {
   border-bottom: none;
+}
+
+.detail-item.with-copy {
+  gap: 8px;
+}
+
+.detail-item .label-value {
+  display: flex;
+  justify-content: space-between;
+  flex: 1;
 }
 
 .detail-item .label {

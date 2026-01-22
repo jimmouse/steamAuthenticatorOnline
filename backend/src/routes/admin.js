@@ -155,7 +155,11 @@ router.delete('/users/:id', (req, res) => {
 
 router.get('/steam-accounts', (req, res) => {
   db.all(
-    'SELECT id, account_name, username, created_at, is_active FROM steam_accounts ORDER BY created_at DESC',
+    `SELECT id, account_name, username, email_address, email_login_url, 
+            country, province, city, color_type, color_value, color_gradient,
+            created_at, is_active 
+     FROM steam_accounts 
+     ORDER BY created_at DESC`,
     [],
     (err, accounts) => {
       if (err) {
@@ -504,22 +508,77 @@ router.get('/steam-accounts/:id/preview', async (req, res) => {
   }
 });
 
+// 获取Steam账户验证码
+router.get('/steam-accounts/:id/code', async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const account = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT shared_secret FROM steam_accounts WHERE id = ?',
+        [id],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+    
+    if (!account || !account.shared_secret) {
+      return res.status(404).json({ error: 'Account not found or no shared secret' });
+    }
+    
+    const SteamTotp = require('steam-totp');
+    const authCode = SteamTotp.generateAuthCode(account.shared_secret);
+    const timeRemaining = 30 - (Math.floor(Date.now() / 1000) % 30);
+    
+    res.json({
+      authCode,
+      timeRemaining
+    });
+  } catch (error) {
+    console.error('Error generating code:', error);
+    res.status(500).json({ error: 'Failed to generate code' });
+  }
+});
+
 // 查询临时用户的登录记录
 router.get('/temp-users/:code/logs', (req, res) => {
   const { code } = req.params;
   
-  db.all(
-    `SELECT ll.* FROM login_logs ll
-     INNER JOIN temp_users tu ON ll.username = tu.username
-     WHERE tu.access_code = ?
-     ORDER BY ll.created_at DESC`,
+  // 先检查temp_users表是否存在该记录
+  db.get(
+    'SELECT username FROM temp_users WHERE access_code = ?',
     [code],
-    (err, logs) => {
+    (err, tempUser) => {
       if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: 'Internal server error' });
+        console.error('Database error checking temp user:', err);
+        return res.status(500).json({ error: 'Database error', details: err.message });
       }
-      res.json({ logs });
+      
+      if (!tempUser) {
+        return res.json({ logs: [] });
+      }
+      
+      // 查询登录日志 - 如果login_logs表不存在，返回空数组
+      db.all(
+        `SELECT * FROM login_logs 
+         WHERE username = ? 
+         ORDER BY created_at DESC`,
+        [tempUser.username],
+        (err, logs) => {
+          if (err) {
+            // 如果表不存在，返回空数组而不是错误
+            if (err.message.includes('no such table')) {
+              console.log('login_logs table does not exist yet');
+              return res.json({ logs: [] });
+            }
+            console.error('Database error fetching logs:', err);
+            return res.status(500).json({ error: 'Database error', details: err.message });
+          }
+          res.json({ logs: logs || [] });
+        }
+      );
     }
   );
 });

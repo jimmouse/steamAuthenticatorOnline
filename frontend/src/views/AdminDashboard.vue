@@ -85,7 +85,7 @@ import SystemSettings from '@/components/admin/SystemSettings.vue'
 const router = useRouter()
 const authStore = useAuthStore()
 
-const activeMenu = ref('preview')
+const activeMenu = ref('accounts')
 
 const components = {
   preview: AccountsPreview,

@@ -147,6 +147,9 @@ const fetchAccountDetails = async (accountId) => {
     }
     
     selectedAccount.value = account
+    
+    // 立即获取验证码
+    await refreshAuthCode()
   } catch (error) {
     console.error('Failed to fetch account details:', error)
     ElMessage.error('获取账户详情失败')
