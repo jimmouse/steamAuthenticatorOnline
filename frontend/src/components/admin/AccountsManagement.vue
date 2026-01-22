@@ -61,7 +61,12 @@
             <div class="detail-item with-copy">
               <div class="label-value">
                 <span class="label">令牌码:</span>
-                <span class="value">{{ account.currentCode || '加载中...' }}</span>
+                <div class="code-display">
+                  <span class="value code-value">{{ account.currentCode || '加载中...' }}</span>
+                  <span v-if="account.timeRemaining" class="time-remaining" :class="getTimeClass(account.timeRemaining)">
+                    {{ account.timeRemaining }}s
+                  </span>
+                </div>
               </div>
               <el-button 
                 v-if="account.currentCode"
@@ -359,11 +364,35 @@ const fetchAllAccounts = async () => {
     console.log('开始获取账户列表...')
     const response = await axios.get('/api/admin/steam-accounts')
     console.log('API响应:', response)
+    
+    // 保留现有账户的令牌码和倒计时
+    const oldAccounts = new Map(allAccounts.value.map(a => [a.id, { currentCode: a.currentCode, timeRemaining: a.timeRemaining }]))
+    
     allAccounts.value = response.data.accounts || []
+    
+    // 恢复令牌码和倒计时
+    for (const account of allAccounts.value) {
+      const old = oldAccounts.get(account.id)
+      if (old) {
+        account.currentCode = old.currentCode
+        account.timeRemaining = old.timeRemaining
+      }
+    }
+    
     console.log('账户列表:', allAccounts.value)
     
-    // 为每个账户获取令牌码
-    refreshAllCodes()
+    // 只为新账户或没有令牌码的账户获取令牌码
+    for (const account of allAccounts.value) {
+      if (!account.currentCode) {
+        try {
+          const response = await axios.get(`/api/admin/steam-accounts/${account.id}/code`)
+          account.currentCode = response.data.authCode
+          account.timeRemaining = response.data.timeRemaining
+        } catch (err) {
+          console.error(`获取账户 ${account.id} 令牌码失败:`, err)
+        }
+      }
+    }
   } catch (err) {
     console.error('获取失败:', err)
     error.value = err.message || '未知错误'
@@ -377,11 +406,44 @@ const refreshAllCodes = async () => {
     try {
       const response = await axios.get(`/api/admin/steam-accounts/${account.id}/code`)
       account.currentCode = response.data.authCode
+      account.timeRemaining = response.data.timeRemaining
     } catch (err) {
       console.error(`获取账户 ${account.id} 令牌码失败:`, err)
       account.currentCode = null
+      account.timeRemaining = null
     }
   }
+}
+
+const updateTimeRemaining = () => {
+  for (const account of allAccounts.value) {
+    if (account.timeRemaining && account.timeRemaining > 0) {
+      account.timeRemaining--
+      if (account.timeRemaining === 0) {
+        // 单个账户到期，刷新该账户的令牌码
+        refreshSingleCode(account.id)
+      }
+    }
+  }
+}
+
+const refreshSingleCode = async (accountId) => {
+  const account = allAccounts.value.find(a => a.id === accountId)
+  if (!account) return
+  
+  try {
+    const response = await axios.get(`/api/admin/steam-accounts/${accountId}/code`)
+    account.currentCode = response.data.authCode
+    account.timeRemaining = response.data.timeRemaining
+  } catch (err) {
+    console.error(`刷新账户 ${accountId} 令牌码失败:`, err)
+  }
+}
+
+const getTimeClass = (timeRemaining) => {
+  if (timeRemaining > 20) return 'time-safe'
+  if (timeRemaining > 10) return 'time-warning'
+  return 'time-danger'
 }
 
 const copyToClipboard = async (text, label) => {
@@ -395,8 +457,8 @@ const copyToClipboard = async (text, label) => {
 
 onMounted(() => {
   fetchAllAccounts()
-  // 每30秒刷新一次令牌码
-  codeRefreshInterval = setInterval(refreshAllCodes, 30000)
+  // 每秒更新倒计时
+  codeRefreshInterval = setInterval(updateTimeRemaining, 1000)
 })
 
 onUnmounted(() => {
@@ -488,6 +550,41 @@ onUnmounted(() => {
   color: var(--el-text-color-primary);
   font-size: 14px;
   font-weight: 500;
+}
+
+.code-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.code-value {
+  font-family: 'Courier New', monospace;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+.time-remaining {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.time-safe {
+  color: #67c23a;
+  background: #f0f9ff;
+}
+
+.time-warning {
+  color: #e6a23c;
+  background: #fdf6ec;
+}
+
+.time-danger {
+  color: #f56c6c;
+  background: #fef0f0;
 }
 
 .card-actions {

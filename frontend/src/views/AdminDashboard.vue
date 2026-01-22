@@ -40,6 +40,10 @@
               <el-icon><Upload /></el-icon>
               <span>批量导入</span>
             </el-menu-item>
+            <el-menu-item index="batch-export">
+              <el-icon><Download /></el-icon>
+              <span>批量导出</span>
+            </el-menu-item>
             <el-menu-item index="temp-users">
               <el-icon><Key /></el-icon>
               <span>临时授权码</span>

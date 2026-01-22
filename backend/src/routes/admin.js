@@ -155,7 +155,7 @@ router.delete('/users/:id', (req, res) => {
 
 router.get('/steam-accounts', (req, res) => {
   db.all(
-    `SELECT id, account_name, username, email_address, email_login_url, 
+    `SELECT id, account_name, username, password, email_address, email_login_url, 
             country, province, city, color_type, color_value, color_gradient,
             created_at, is_active 
      FROM steam_accounts 
@@ -169,6 +169,121 @@ router.get('/steam-accounts', (req, res) => {
       res.json({ accounts });
     }
   );
+});
+
+// 获取账户数量
+router.get('/steam-accounts/count', (req, res) => {
+  const { filter } = req.query;
+  let query = 'SELECT COUNT(*) as count FROM steam_accounts';
+  const params = [];
+  
+  if (filter === 'active') {
+    query += ' WHERE is_active = 1';
+  } else if (filter === 'inactive') {
+    query += ' WHERE is_active = 0';
+  }
+  
+  db.get(query, params, (err, result) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+    res.json({ count: result.count });
+  });
+});
+
+// 导出账户数据为CSV
+router.get('/steam-accounts/export', (req, res) => {
+  const { fields, filter } = req.query;
+  
+  if (!fields) {
+    return res.status(400).json({ error: 'Fields parameter is required' });
+  }
+  
+  const requestedFields = fields.split(',');
+  const allowedFields = [
+    'id', 'account_name', 'username', 'password', 
+    'email_address', 'email_login_url', 'email_password',
+    'country', 'province', 'city',
+    'shared_secret', 'identity_secret',
+    'is_active', 'created_at'
+  ];
+  
+  const validFields = requestedFields.filter(f => allowedFields.includes(f));
+  
+  if (validFields.length === 0) {
+    return res.status(400).json({ error: 'No valid fields specified' });
+  }
+  
+  let query = `SELECT ${validFields.join(', ')} FROM steam_accounts`;
+  const params = [];
+  
+  if (filter === 'active') {
+    query += ' WHERE is_active = 1';
+  } else if (filter === 'inactive') {
+    query += ' WHERE is_active = 0';
+  }
+  
+  query += ' ORDER BY created_at DESC';
+  
+  db.all(query, params, (err, accounts) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+    
+    // 生成CSV
+    const fieldNames = {
+      id: 'ID',
+      account_name: '账户名称',
+      username: '用户名',
+      password: '密码',
+      email_address: '邮箱地址',
+      email_login_url: '邮箱登录地址',
+      email_password: '邮箱密码',
+      country: '国家',
+      province: '省份',
+      city: '城市',
+      shared_secret: 'Shared Secret',
+      identity_secret: 'Identity Secret',
+      is_active: '状态',
+      created_at: '创建时间'
+    };
+    
+    // CSV头部
+    const headers = validFields.map(f => fieldNames[f] || f);
+    let csv = '\uFEFF' + headers.join(',') + '\n'; // 添加BOM以支持Excel中文
+    
+    // CSV数据行
+    accounts.forEach(account => {
+      const row = validFields.map(field => {
+        let value = account[field];
+        
+        // 处理特殊值
+        if (value === null || value === undefined) {
+          value = '';
+        } else if (field === 'is_active') {
+          value = value ? '启用' : '禁用';
+        } else if (field === 'created_at') {
+          value = new Date(value).toLocaleString('zh-CN');
+        }
+        
+        // 转义CSV特殊字符
+        value = String(value);
+        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+          value = '"' + value.replace(/"/g, '""') + '"';
+        }
+        
+        return value;
+      });
+      
+      csv += row.join(',') + '\n';
+    });
+    
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename=steam_accounts_${Date.now()}.csv`);
+    res.send(csv);
+  });
 });
 
 router.post('/steam-accounts', upload.single('sdaFile'), async (req, res) => {
@@ -224,24 +339,72 @@ router.post('/steam-accounts', upload.single('sdaFile'), async (req, res) => {
 
 router.put('/steam-accounts/:id', (req, res) => {
   const accountId = req.params.id;
-  const { accountName, username, password, is_active } = req.body;
+  const { 
+    account_name, username, password, email_address, email_login_url, email_password,
+    country, province, city, color_type, color_value, color_gradient, is_active 
+  } = req.body;
 
   const updates = [];
   const params = [];
 
-  if (accountName) {
+  if (account_name !== undefined) {
     updates.push('account_name = ?');
-    params.push(accountName);
+    params.push(account_name);
   }
 
-  if (username) {
+  if (username !== undefined) {
     updates.push('username = ?');
     params.push(username);
   }
 
-  if (password) {
+  if (password !== undefined && password !== '') {
     updates.push('password = ?');
     params.push(password);
+  }
+
+  if (email_address !== undefined) {
+    updates.push('email_address = ?');
+    params.push(email_address || null);
+  }
+
+  if (email_login_url !== undefined) {
+    updates.push('email_login_url = ?');
+    params.push(email_login_url || null);
+  }
+
+  if (email_password !== undefined && email_password !== '') {
+    updates.push('email_password = ?');
+    params.push(email_password);
+  }
+
+  if (country !== undefined) {
+    updates.push('country = ?');
+    params.push(country || null);
+  }
+
+  if (province !== undefined) {
+    updates.push('province = ?');
+    params.push(province || null);
+  }
+
+  if (city !== undefined) {
+    updates.push('city = ?');
+    params.push(city || null);
+  }
+
+  if (color_type !== undefined) {
+    updates.push('color_type = ?');
+    params.push(color_type || null);
+  }
+
+  if (color_value !== undefined) {
+    updates.push('color_value = ?');
+    params.push(color_value || null);
+  }
+
+  if (color_gradient !== undefined) {
+    updates.push('color_gradient = ?');
+    params.push(color_gradient || null);
   }
 
   if (typeof is_active !== 'undefined') {
