@@ -756,7 +756,7 @@ router.get('/temp-users/:code/logs', (req, res) => {
       db.all(
         `SELECT * FROM login_logs 
          WHERE username = ? 
-         ORDER BY created_at DESC`,
+         ORDER BY login_time DESC`,
         [tempUser.username],
         (err, logs) => {
           if (err) {
@@ -773,6 +773,54 @@ router.get('/temp-users/:code/logs', (req, res) => {
       );
     }
   );
+});
+
+// 获取系统设置
+router.get('/settings', (req, res) => {
+  db.all('SELECT setting_key, setting_value FROM system_settings', [], (err, settings) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+    
+    const settingsObj = {};
+    settings.forEach(s => {
+      settingsObj[s.setting_key] = s.setting_value;
+    });
+    
+    res.json({ settings: settingsObj });
+  });
+});
+
+// 更新系统设置
+router.put('/settings', (req, res) => {
+  const { settings } = req.body;
+  
+  if (!settings || typeof settings !== 'object') {
+    return res.status(400).json({ error: 'Invalid settings data' });
+  }
+  
+  const updates = Object.entries(settings).map(([key, value]) => {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE system_settings SET setting_value = ? WHERE setting_key = ?',
+        [value, key],
+        (err) => {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+  });
+  
+  Promise.all(updates)
+    .then(() => {
+      res.json({ message: 'Settings updated successfully' });
+    })
+    .catch((err) => {
+      console.error('Database error:', err);
+      res.status(500).json({ error: 'Internal server error' });
+    });
 });
 
 module.exports = router;

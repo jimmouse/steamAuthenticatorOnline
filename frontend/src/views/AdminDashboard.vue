@@ -98,6 +98,7 @@ const components = {
   accounts: AccountsManagement,
   pending: PendingAccounts,
   'batch-import': BatchImport,
+  'batch-export': BatchExport,
   'temp-users': TempUsers,
   permissions: PermissionsManagement,
   logs: LogsManagement,
