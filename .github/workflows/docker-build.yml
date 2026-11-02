@@ -1,6 +1,7 @@
 name: Docker Build and Push
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -48,6 +49,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Backend Docker image
         uses: docker/build-push-action@v5
@@ -71,6 +73,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Frontend Docker image
         uses: docker/build-push-action@v5
@@ -94,6 +97,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Steam Service Docker image
         uses: docker/build-push-action@v5
